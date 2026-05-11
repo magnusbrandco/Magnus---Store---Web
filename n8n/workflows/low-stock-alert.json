@@ -1,0 +1,142 @@
+{
+  "name": "Low Stock Alert",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 1
+            }
+          ]
+        }
+      },
+      "id": "schedule-node",
+      "name": "Schedule",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [
+        100,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "product_variants",
+        "returnAll": true,
+        "filters": {
+          "conditions": [
+            {
+              "fieldName": "stock",
+              "condition": "lessThanEqual",
+              "searchValue": 3
+            }
+          ]
+        }
+      },
+      "id": "check-stock-node",
+      "name": "Check Stock",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        300,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ $items().length }}",
+              "operation": "larger",
+              "value2": 0
+            }
+          ]
+        }
+      },
+      "id": "if-node",
+      "name": "Has Results",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        500,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "post",
+        "channel": "C08FGB2C4Q2",
+        "text": "=🚨 LOW STOCK ALERT\n\n{{ $items().length }} items con poco stock.\n\n{{ $items().map(i => i.json.name + ': ' + i.json.stock).join('\\n') }}"
+      },
+      "id": "slack-node",
+      "name": "Slack Alert",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [
+        750,
+        0
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "noop-node",
+      "name": "NoOp",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        750,
+        200
+      ]
+    }
+  ],
+  "connections": {
+    "Schedule": {
+      "main": [
+        [
+          {
+            "node": "Check Stock",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Stock": {
+      "main": [
+        [
+          {
+            "node": "Has Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Results": {
+      "main": [
+        [
+          {
+            "node": "Slack Alert",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "NoOp",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {},
+  "pinData": {}
+}

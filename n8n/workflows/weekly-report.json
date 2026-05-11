@@ -1,0 +1,117 @@
+{
+  "name": "Weekly Revenue Report",
+  "nodes": [
+    {
+      "parameters": {
+        "triggerTimes": {
+          "item": [
+            {
+              "mode": "custom",
+              "cronExpression": "0 9 * * 1"
+            }
+          ]
+        }
+      },
+      "id": "cron-node",
+      "name": "Cron",
+      "type": "n8n-nodes-base.cron",
+      "typeVersion": 1,
+      "position": [
+        250,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "orders",
+        "returnAll": true,
+        "filters": {
+          "conditions": [
+            {
+              "fieldName": "status",
+              "condition": "equal",
+              "searchValue": "completed"
+            }
+          ]
+        }
+      },
+      "id": "supabase-node",
+      "name": "Get Stats",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        500,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "const orders = items;\n\nconst oneWeekAgo = new Date();\noneWeekAgo.setDate(oneWeekAgo.getDate() - 7);\n\nconst filteredOrders = orders.filter(order => {\n  const createdAt = new Date(order.json.created_at);\n  return createdAt >= oneWeekAgo;\n});\n\nconst totalRevenue = filteredOrders.reduce((sum, item) => {\n  return sum + Number(item.json.total_amount || 0);\n}, 0);\n\nconst totalOrders = filteredOrders.length;\n\nconst avgOrderValue = totalOrders > 0\n  ? (totalRevenue / totalOrders).toFixed(2)\n  : '0.00';\n\nconst html = `\n<h1>Weekly Revenue Report</h1>\n<p>Past 7 days</p>\n<table border=\"1\" cellpadding=\"8\" cellspacing=\"0\">\n<tr>\n<td>Total Orders</td>\n<td>${totalOrders}</td>\n</tr>\n<tr>\n<td>Total Revenue</td>\n<td>$${totalRevenue.toFixed(2)}</td>\n</tr>\n<tr>\n<td>Average Order Value</td>\n<td>$${avgOrderValue}</td>\n</tr>\n</table>\n`;\n\nreturn [\n  {\n    json: {\n      subject: `Weekly Revenue Report - $${totalRevenue.toFixed(2)}`,\n      html: html\n    }\n  }\n];"
+      },
+      "id": "function-node",
+      "name": "Format Report",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        750,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "requestMethod": "POST",
+        "url": "https://api.resend.com/emails",
+        "jsonParameters": true,
+        "headerParametersJson": "{\n  \"Authorization\": \"Bearer TU_API_KEY_RESEND\",\n  \"Content-Type\": \"application/json\"\n}",
+        "bodyParametersJson": "={\n  \"from\": \"Magnus Store <reports@magnus-store.com>\",\n  \"to\": [\"admin@magnus-store.com\"],\n  \"subject\": $json.subject,\n  \"html\": $json.html\n}"
+      },
+      "id": "http-node",
+      "name": "Send Report",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        1000,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Cron": {
+      "main": [
+        [
+          {
+            "node": "Get Stats",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Stats": {
+      "main": [
+        [
+          {
+            "node": "Format Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Report": {
+      "main": [
+        [
+          {
+            "node": "Send Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {},
+  "pinData": {}
+}

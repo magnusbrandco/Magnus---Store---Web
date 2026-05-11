@@ -1,0 +1,128 @@
+{
+  "name": "Abandoned Cart Recovery",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 1
+            }
+          ]
+        }
+      },
+      "id": "schedule-trigger-1",
+      "name": "Schedule",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [
+        260,
+        300
+      ],
+      "notes": "Runs every 1 hour to check for abandoned carts",
+      "notesFlow": false
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "carts",
+        "returnAll": true,
+        "filters": {
+          "conditions": [
+            {
+              "fieldName": "converted",
+              "condition": "equal",
+              "searchValue": "false"
+            },
+            {
+              "fieldName": "updated_at",
+              "condition": "lessThan",
+              "searchValue": "={{ $now.minus({ hours: 2 }).toISO() }}"
+            }
+          ]
+        }
+      },
+      "id": "supabase-get-carts",
+      "name": "Get Abandoned Carts",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        560,
+        300
+      ],
+      "notes": "Find carts older than 2 hours that haven't converted",
+      "notesFlow": false,
+      "credentials": {
+        "supabaseApi": {
+          "id": "YOUR_CREDENTIAL_ID",
+          "name": "Supabase Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.resend.com/emails",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer YOUR_RESEND_API_KEY"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"from\": \"Magnus Store <carts@magnus-store.com>\",\n  \"to\": [$json.email],\n  \"subject\": \"Complete Your Purchase at Magnus Store\",\n  \"html\": \"<h1>You left something behind!</h1><p>Your cart with \" + $json.item_count + \" item(s) is waiting.</p><p><a href='https://magnus-store.com/cart/\" + $json.id + \"'>Return to cart</a></p>\"\n}"
+      },
+      "id": "send-reminder-email",
+      "name": "Send Reminder",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        860,
+        300
+      ],
+      "notes": "Send abandoned cart reminder via Resend API",
+      "notesFlow": false
+    }
+  ],
+  "connections": {
+    "Schedule": {
+      "main": [
+        [
+          {
+            "node": "Get Abandoned Carts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Abandoned Carts": {
+      "main": [
+        [
+          {
+            "node": "Send Reminder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "active": false,
+  "settings": {},
+  "versionId": "1",
+  "meta": {
+    "instanceId": "n8n-local"
+  },
+  "tags": []
+}

@@ -1,0 +1,106 @@
+{
+  "name": "Drop Launch Notification",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "drop-launch",
+        "httpMethod": "POST",
+        "responseMode": "onReceived"
+      },
+      "id": "webhook-node",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        250,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "drop_subscribers",
+        "returnAll": true,
+        "filters": {
+          "conditions": [
+            {
+              "fieldName": "drop_id",
+              "condition": "equal",
+              "searchValue": "={{ $json.body.drop_id }}"
+            },
+            {
+              "fieldName": "notified",
+              "condition": "equal",
+              "searchValue": "false"
+            }
+          ]
+        }
+      },
+      "id": "supabase-node",
+      "name": "Get Subscribers",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        550,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.resend.com/emails",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer TU_API_KEY_RESEND"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"from\": \"Magnus Store <drops@magnus-store.com>\",\n  \"to\": [$json.email],\n  \"subject\": \"New Drop: \" + $json.body.drop_name + \" is Live!\",\n  \"html\": \"<h1>\" + $json.body.drop_name + \" is here!</h1><p>Check out our latest collection now.</p><p><a href='https://magnus-store.com/drops/\" + $json.body.drop_id + \"'>Shop Now</a></p>\"\n}"
+      },
+      "id": "send-email-node",
+      "name": "Send Batch",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        850,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Get Subscribers",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Subscribers": {
+      "main": [
+        [
+          {
+            "node": "Send Batch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {},
+  "pinData": {}
+}

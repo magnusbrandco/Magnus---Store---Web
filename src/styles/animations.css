@@ -1,0 +1,51 @@
+@keyframes glitch {
+  0%, 90%, 100% {
+    transform: translate(0);
+    text-shadow: none;
+  }
+  92% {
+    transform: translate(-2px, 2px);
+    text-shadow: 2px 0 #d4ff00, -2px 0 #ff2d00;
+  }
+  94% {
+    transform: translate(2px, -2px);
+    text-shadow: -2px 0 #d4ff00, 2px 0 #ff2d00;
+  }
+  96% {
+    transform: translate(-1px, 1px);
+    text-shadow: 1px 0 #d4ff00, -1px 0 #ff2d00;
+  }
+  98% {
+    transform: translate(0);
+    text-shadow: none;
+  }
+}
+
+@keyframes letterReveal {
+  from {
+    opacity: 0;
+    transform: translateY(20px) rotateX(-90deg);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) rotateX(0);
+  }
+}
+
+@keyframes noiseFlicker {
+  0% { opacity: 0.3; }
+  50% { opacity: 0.5; }
+  100% { opacity: 0.3; }
+}
+
+.animate-letter {
+  animation: letterReveal 0.5s ease forwards;
+}
+
+.animate-glitch {
+  animation: glitch 4s infinite;
+}
+
+.animate-noise {
+  animation: noiseFlicker 3s infinite;
+}

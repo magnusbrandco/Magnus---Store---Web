@@ -1,0 +1,101 @@
+{
+  "name": "Order Confirmation Email",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "order-created",
+        "httpMethod": "POST",
+        "responseMode": "onReceived"
+      },
+      "id": "webhook-node",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        250,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "orders",
+        "returnAll": false,
+        "filters": {
+          "conditions": [
+            {
+              "fieldName": "id",
+              "condition": "equal",
+              "searchValue": "={{ $json.body.order_id }}"
+            }
+          ]
+        }
+      },
+      "id": "get-order-node",
+      "name": "Get Order",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        550,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.resend.com/emails",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer TU_API_KEY_RESEND"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"from\": \"Magnus Store <orders@magnus-store.com>\",\n  \"to\": [$json.email],\n  \"subject\": \"Order Confirmation #\" + $json.id,\n  \"html\": \"<h1>Thank you for your order!</h1><p>Order #\" + $json.id + \"</p><p>Total: $\" + $json.total_amount + \"</p>\"\n}"
+      },
+      "id": "send-email-node",
+      "name": "Send Email",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        850,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Get Order",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Order": {
+      "main": [
+        [
+          {
+            "node": "Send Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {},
+  "pinData": {}
+}
