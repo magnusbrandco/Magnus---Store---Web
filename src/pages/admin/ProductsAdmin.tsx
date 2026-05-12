@@ -85,7 +85,7 @@ export default function ProductsAdmin() {
 
   const createProduct = useMutation({
     mutationFn: async (payload: Record<string, unknown>) => {
-      const { data, error } = await supabase.from('products').insert(payload).select().single()
+      const { data, error } = await ((supabase as any).from('products').insert([payload]).select().single())
       if (error) throw error
       return data as Product
     },

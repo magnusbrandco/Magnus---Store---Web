@@ -71,7 +71,7 @@ export default function BrandsAdmin() {
         sort_order: 0,
       }
 
-      const { data, error } = await supabase.from('brands').insert(payload).select().single()
+      const { data, error } = await ((supabase as any).from('brands').insert([payload]).select().single())
       if (error) throw error
       return data as Brand
     },
@@ -110,12 +110,12 @@ export default function BrandsAdmin() {
       if (existingSlug.error) throw existingSlug.error
       if (existingSlug.data?.length) throw new Error('Ya existe otro slug igual.')
 
-      const { data, error } = await supabase
+      const { data, error } = await ((supabase as any)
         .from('brands')
         .update({ name: trimmedName, slug: payload.slug })
         .eq('id', payload.id)
         .select()
-        .single()
+        .single())
       if (error) throw error
       return data as Brand
     },

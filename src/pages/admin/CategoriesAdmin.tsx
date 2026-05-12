@@ -71,7 +71,7 @@ export default function CategoriesAdmin() {
         sort_order: 0,
       }
 
-      const { data, error } = await supabase.from('categories').insert(payload).select().single()
+      const { data, error } = await ((supabase as any).from('categories').insert([payload]).select().single())
       if (error) throw error
       return data as Category
     },
@@ -110,12 +110,12 @@ export default function CategoriesAdmin() {
       if (existingSlug.error) throw existingSlug.error
       if (existingSlug.data?.length) throw new Error('Ya existe otro slug igual.')
 
-      const { data, error } = await supabase
+      const { data, error } = await ((supabase as any)
         .from('categories')
         .update({ name: trimmedName, slug: payload.slug, parent_id: payload.parent_id || null })
         .eq('id', payload.id)
         .select()
-        .single()
+        .single())
       if (error) throw error
       return data as Category
     },

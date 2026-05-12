@@ -22,11 +22,12 @@ export function useUpdateHomepageSettings() {
 
   return useMutation({
     mutationFn: async (settings: HomepageSetting) => {
-      const { data, error } = await supabase
+      const { data, error } = await ((supabase as any)
         .from('homepage_settings')
         .update(settings)
         .eq('id', settings.id)
-        .single()
+        .select()
+        .single())
 
       if (error) throw error
       return data as HomepageSetting
