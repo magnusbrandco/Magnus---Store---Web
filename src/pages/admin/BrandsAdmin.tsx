@@ -76,7 +76,7 @@ export default function BrandsAdmin() {
       return data as Brand
     },
     onSuccess: () => {
-      queryClient.invalidateQueries(['admin', 'brands'])
+      queryClient.invalidateQueries({ queryKey: ['admin', 'brands'] })
       setName('')
       setLogoUrl('')
       setCoverUrl('')
@@ -120,7 +120,7 @@ export default function BrandsAdmin() {
       return data as Brand
     },
     onSuccess: () => {
-      queryClient.invalidateQueries(['admin', 'brands'])
+      queryClient.invalidateQueries({ queryKey: ['admin', 'brands'] })
       resetEditBrand()
       showToast('Marca actualizada correctamente.', 'success')
     },
@@ -136,7 +136,7 @@ export default function BrandsAdmin() {
       return data as Brand
     },
     onSuccess: () => {
-      queryClient.invalidateQueries(['admin', 'brands'])
+      queryClient.invalidateQueries({ queryKey: ['admin', 'brands'] })
       if (editingBrandId) resetEditBrand()
       showToast('Marca eliminada correctamente.', 'success')
     },
@@ -145,7 +145,7 @@ export default function BrandsAdmin() {
     },
   })
 
-  const isBusy = createBrand.isLoading || updateBrand.isLoading || deleteBrand.isLoading
+  const isBusy = createBrand.isPending || updateBrand.isPending || deleteBrand.isPending
 
   const handleSubmit = async (event: { preventDefault: () => void }) => {
     event.preventDefault()
@@ -403,7 +403,7 @@ export default function BrandsAdmin() {
               disabled={isBusy}
               className="btn-primary rounded-full px-6 py-3"
             >
-              {createBrand.isLoading ? 'Guardando...' : 'Crear marca'}
+              {createBrand.isPending ? 'Guardando...' : 'Crear marca'}
             </button>
             <div className="space-y-1">
               {createBrand.isSuccess && (

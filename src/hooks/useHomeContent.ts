@@ -32,7 +32,7 @@ export function useUpdateHomepageSettings() {
       return data as HomepageSetting
     },
     onSuccess: () => {
-      queryClient.invalidateQueries(['homepageSettings'])
+      queryClient.invalidateQueries({ queryKey: ['homepageSettings'] })
     },
   })
 }

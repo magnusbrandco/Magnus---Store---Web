@@ -73,10 +73,10 @@ export default function Account() {
         {activeTab === 'pedidos' && (
           <div className="space-y-4">
             {isLoading && <p className="font-body text-muted">Cargando pedidos...</p>}
-            {!isLoading && orders?.length === 0 && (
+            {!isLoading && (!orders || orders.length === 0) && (
               <p className="font-body text-muted">No tienes pedidos aún.</p>
             )}
-            {!isLoading && orders?.length > 0 && orders.map((order: any) => (
+            {!isLoading && orders && orders.length > 0 && orders.map((order: any) => (
               <div key={order.id} className="bg-bg-3 border border-border p-6 flex items-center justify-between">
                 <div>
                   <p className="font-mono text-sm text-lime">{order.order_number}</p>

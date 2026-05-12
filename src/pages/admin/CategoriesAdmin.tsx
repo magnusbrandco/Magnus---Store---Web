@@ -76,7 +76,7 @@ export default function CategoriesAdmin() {
       return data as Category
     },
     onSuccess: () => {
-      queryClient.invalidateQueries(['admin', 'categories'])
+      queryClient.invalidateQueries({ queryKey: ['admin', 'categories'] })
       setName('')
       setImageUrl('')
       setParentId(null)
@@ -120,7 +120,7 @@ export default function CategoriesAdmin() {
       return data as Category
     },
     onSuccess: () => {
-      queryClient.invalidateQueries(['admin', 'categories'])
+      queryClient.invalidateQueries({ queryKey: ['admin', 'categories'] })
       resetEditCategory()
       showToast('Categoría actualizada correctamente.', 'success')
     },
@@ -136,7 +136,7 @@ export default function CategoriesAdmin() {
       return data as Category
     },
     onSuccess: () => {
-      queryClient.invalidateQueries(['admin', 'categories'])
+      queryClient.invalidateQueries({ queryKey: ['admin', 'categories'] })
       if (editingCategoryId) resetEditCategory()
       showToast('Categoría eliminada correctamente.', 'success')
     },
@@ -145,7 +145,7 @@ export default function CategoriesAdmin() {
     },
   })
 
-  const isBusy = createCategory.isLoading || updateCategory.isLoading || deleteCategory.isLoading
+  const isBusy = createCategory.isPending || updateCategory.isPending || deleteCategory.isPending
 
   const handleSubmit = async (event: { preventDefault: () => void }) => {
     event.preventDefault()
@@ -437,7 +437,7 @@ export default function CategoriesAdmin() {
               disabled={isBusy}
               className="btn-primary rounded-full px-6 py-3"
             >
-              {createCategory.isLoading ? 'Guardando...' : 'Crear categoría'}
+              {createCategory.isPending ? 'Guardando...' : 'Crear categoría'}
             </button>
             <div className="space-y-1">
               {createCategory.isSuccess && (

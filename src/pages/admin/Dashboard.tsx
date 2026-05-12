@@ -181,10 +181,10 @@ export default function Dashboard() {
             <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
               <button
                 type="submit"
-                disabled={updateSettings.isLoading || !form.id}
+                disabled={updateSettings.isPending || !form.id}
                 className="btn-primary w-full md:w-auto"
               >
-                {updateSettings.isLoading ? 'Guardando...' : 'Guardar contenido de home'}
+                {updateSettings.isPending ? 'Guardando...' : 'Guardar contenido de home'}
               </button>
               {updateSettings.isSuccess && (
                 <p className="font-body text-sm text-lime">Contenido actualizado correctamente.</p>

@@ -90,7 +90,7 @@ export default function ProductsAdmin() {
       return data as Product
     },
     onSuccess: () => {
-      queryClient.invalidateQueries(['admin', 'products'])
+      queryClient.invalidateQueries({ queryKey: ['admin', 'products'] })
       setForm(initialFormState)
       setIsCreating(false)
     },
@@ -325,10 +325,10 @@ export default function ProductsAdmin() {
             <div className="lg:col-span-2 flex items-center gap-3">
               <button
                 type="submit"
-                disabled={createProduct.isLoading}
+                disabled={createProduct.isPending}
                 className="btn-primary inline-flex items-center justify-center rounded-full px-6 py-3"
               >
-                {createProduct.isLoading ? 'Guardando...' : 'Guardar producto'}
+                {createProduct.isPending ? 'Guardando...' : 'Guardar producto'}
               </button>
               {createProduct.isSuccess && (
                 <p className="font-body text-sm text-lime">Producto creado correctamente.</p>

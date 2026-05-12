@@ -24,10 +24,10 @@ export default function AuthPage() {
               <p className="font-body text-muted text-sm">Inicia sesión con tu cuenta de administrador para gestionar la tienda.</p>
             </div>
             <div className="flex gap-2">
-              <Button variant={isLogin ? 'secondary' : 'outline'} onClick={() => setIsLogin(true)}>
+              <Button variant={isLogin ? 'primary' : 'outline'} onClick={() => setIsLogin(true)}>
                 Entrar
               </Button>
-              <Button variant={isLogin ? 'outline' : 'secondary'} onClick={() => setIsLogin(false)}>
+              <Button variant={isLogin ? 'outline' : 'primary'} onClick={() => setIsLogin(false)}>
                 Crear cuenta
               </Button>
             </div>
