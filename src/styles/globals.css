@@ -7,7 +7,8 @@
   --color-bg-3: #161616;
   --color-surface: #1a1a1a;
   --color-border: #222222;
-  --color-lime: #d4ff00;
+  --color-lime: #05C7F2;
+  --color-brand: #05C7F2;
   --color-red: #ff2d00;
   --color-muted: #666666;
   --color-white: #f0f0f0;
@@ -119,6 +120,54 @@
       padding-left: 4rem;
       padding-right: 4rem;
     }
+  }
+
+  .text-lime {
+    color: var(--color-lime) !important;
+  }
+
+  .bg-lime {
+    background-color: var(--color-lime) !important;
+  }
+
+  .bg-lime\/10 {
+    background-color: rgba(5, 199, 242, 0.1) !important;
+  }
+
+  .bg-lime\/20 {
+    background-color: rgba(5, 199, 242, 0.2) !important;
+  }
+
+  .bg-lime\/50 {
+    background-color: rgba(5, 199, 242, 0.5) !important;
+  }
+
+  .border-lime {
+    border-color: var(--color-lime) !important;
+  }
+
+  .fill-lime {
+    fill: var(--color-lime) !important;
+  }
+
+  .stroke-lime {
+    stroke: var(--color-lime) !important;
+  }
+
+  .hover\:text-lime:hover {
+    color: var(--color-lime) !important;
+  }
+
+  .hover\:bg-lime:hover {
+    background-color: var(--color-lime) !important;
+  }
+
+  .hover\:bg-lime\/20:hover {
+    background-color: rgba(5, 199, 242, 0.2) !important;
+  }
+
+  .hover\:border-lime:hover {
+    border-color: var(--color-lime) !important;
   }
 
   .btn-primary {

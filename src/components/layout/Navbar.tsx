@@ -20,8 +20,8 @@ export function Navbar() {
     >
       <nav className="container-wide flex items-center justify-between h-16 md:h-20">
         <div className="flex items-center gap-8">
-          <Link to="/" className="font-display text-display-md text-lime leading-none">
-            MAGNUS
+          <Link to="/" className="block leading-none">
+            <img src="/LOGO_BLANCO.png" alt="Magnus" className="h-8 sm:h-10" />
           </Link>
           <div className="hidden lg:flex items-center gap-6">
             <Link to="/tienda" className="font-body text-sm text-muted hover:text-white transition-colors">

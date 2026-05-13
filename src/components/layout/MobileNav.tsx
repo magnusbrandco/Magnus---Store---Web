@@ -25,7 +25,9 @@ export function MobileNav() {
             className="fixed top-0 right-0 bottom-0 w-72 bg-bg-2 border-l border-border z-50 lg:hidden"
           >
             <div className="flex items-center justify-between p-6 border-b border-border">
-              <span className="font-display text-display-sm text-lime">MAGNUS</span>
+              <Link to="/" onClick={toggleMobileMenu} className="block leading-none">
+                <img src="/LOGO_BLANCO.png" alt="Magnus" className="h-8 sm:h-10" />
+              </Link>
               <button onClick={toggleMobileMenu} className="text-muted hover:text-white">
                 <X size={20} />
               </button>

@@ -29,6 +29,7 @@ const CategoriesAdmin = lazy(() => import('@/pages/admin/CategoriesAdmin'))
 const OrdersAdmin = lazy(() => import('@/pages/admin/OrdersAdmin'))
 const CustomersAdmin = lazy(() => import('@/pages/admin/CustomersAdmin'))
 const DropsAdmin = lazy(() => import('@/pages/admin/DropsAdmin'))
+const CouponsAdmin = lazy(() => import('@/pages/admin/CouponsAdmin'))
 const AdminLayout = lazy(() => import('@/pages/admin/AdminLayout').then(m => ({ default: m.AdminLayout })))
 
 function PageLoader() {
@@ -74,6 +75,7 @@ export default function App() {
                   <Route path="productos" element={<ProductsAdmin />} />
                   <Route path="marcas" element={<BrandsAdmin />} />
                   <Route path="categorias" element={<CategoriesAdmin />} />
+                  <Route path="cupones" element={<CouponsAdmin />} />
                   <Route path="pedidos" element={<OrdersAdmin />} />
                   <Route path="clientes" element={<CustomersAdmin />} />
                   <Route path="drops" element={<DropsAdmin />} />

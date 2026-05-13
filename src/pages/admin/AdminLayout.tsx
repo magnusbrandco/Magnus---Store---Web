@@ -6,6 +6,7 @@ const adminLinks = [
   { to: '/admin/productos', label: 'Productos' },
   { to: '/admin/marcas', label: 'Marcas' },
   { to: '/admin/categorias', label: 'Categorías' },
+  { to: '/admin/cupones', label: 'Cupones' },
   { to: '/admin/pedidos', label: 'Pedidos' },
   { to: '/admin/clientes', label: 'Clientes' },
   { to: '/admin/drops', label: 'Drops' },
@@ -18,7 +19,9 @@ export function AdminLayout() {
   const { user, profile, isOwner } = useAuth()
   const location = useLocation()
 
-  if (!user || (!isOwner && profile?.role !== 'admin')) {
+  const isAdmin = profile?.role?.toLowerCase() === 'admin'
+
+  if (!user || (!isOwner && !isAdmin)) {
     return (
       <div className="pt-24 pb-16 text-center">
         <p className="font-body text-muted">Debes iniciar sesión como administrador.</p>
