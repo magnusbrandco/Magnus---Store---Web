@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type ChangeEvent } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useSEO } from '@/hooks/useSEO'
 import { Modal, Toast } from '@/components/ui'
@@ -19,6 +19,8 @@ export default function CategoriesAdmin() {
   const queryClient = useQueryClient()
   const [name, setName] = useState('')
   const [imageUrl, setImageUrl] = useState('')
+  const [imageFile, setImageFile] = useState<File | null>(null)
+  const [imagePreview, setImagePreview] = useState<string | null>(null)
   const [parentId, setParentId] = useState<string | null>(null)
 
   const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null)
@@ -48,6 +50,25 @@ export default function CategoriesAdmin() {
     setToastVisible(true)
   }
 
+  const uploadImageToStorage = async (file: File, folder: string) => {
+    const fileName = `${folder}/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.\-_]/g, '_')}`
+    const { data, error } = await supabase.storage.from('images').upload(fileName, file, {
+      cacheControl: '3600',
+      upsert: true,
+    })
+    if (error) throw error
+    const { data: publicData } = supabase.storage.from('images').getPublicUrl(fileName)
+    return publicData.publicUrl
+  }
+
+  const handleImageFileChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0] ?? null
+    if (!file) return
+    setImageFile(file)
+    setImageUrl('')
+    setImagePreview(URL.createObjectURL(file))
+  }
+
   const createCategory = useMutation({
     mutationFn: async () => {
       const trimmedName = name.trim()
@@ -62,11 +83,13 @@ export default function CategoriesAdmin() {
       if (existingSlug.error) throw existingSlug.error
       if (existingSlug.data?.length) throw new Error('Ya existe una categoría con ese slug.')
 
+      const imagePath = imageFile ? await uploadImageToStorage(imageFile, 'categories/images') : imageUrl || null
+
       const payload = {
         name: trimmedName,
         slug,
         description: null,
-        image_url: imageUrl || null,
+        image_url: imagePath,
         parent_id: parentId || null,
         sort_order: 0,
       }
@@ -79,6 +102,8 @@ export default function CategoriesAdmin() {
       queryClient.invalidateQueries({ queryKey: ['admin', 'categories'] })
       setName('')
       setImageUrl('')
+      setImageFile(null)
+      setImagePreview(null)
       setParentId(null)
       showToast('Categoría creada correctamente.', 'success')
     },
@@ -400,16 +425,28 @@ export default function CategoriesAdmin() {
             />
           </label>
           <label className="block">
-            <span className="font-body text-sm text-muted">Imagen URL</span>
+            <span className="font-body text-sm text-muted">Imagen</span>
+            <input
+              type="file"
+              accept="image/*"
+              onChange={handleImageFileChange}
+              disabled={isBusy}
+              className="mt-2 w-full rounded border border-border bg-bg px-3 py-2 text-white file:cursor-pointer file:rounded-full file:border-none file:bg-bg-2 file:px-3 file:py-2"
+            />
             <input
               value={imageUrl}
-              onChange={(event) => setImageUrl(event.target.value)}
+              onChange={(event) => {
+                setImageUrl(event.target.value)
+                setImageFile(null)
+                setImagePreview(null)
+              }}
               disabled={isBusy}
-              className="mt-2 w-full rounded border border-border bg-bg px-3 py-2 text-white"
+              placeholder="O pega una URL"
+              className="mt-3 w-full rounded border border-border bg-bg px-3 py-2 text-white"
             />
-            {imageUrl && (
+            {(imagePreview || imageUrl) && (
               <div className="mt-2 overflow-hidden rounded-2xl border border-border bg-bg">
-                <img src={imageUrl} alt="Vista previa de categoría" className="h-20 w-full object-cover" />
+                <img src={imagePreview || imageUrl} alt="Vista previa de categoría" className="h-20 w-full object-cover" />
               </div>
             )}
           </label>

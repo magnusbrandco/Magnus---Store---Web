@@ -1,4 +1,4 @@
-import { Outlet, Link, useLocation } from 'react-router-dom'
+import { Outlet, Link, Navigate, useLocation } from 'react-router-dom'
 import { useAuth } from '@/hooks/useAuth'
 
 const adminLinks = [
@@ -20,6 +20,10 @@ export function AdminLayout() {
   const location = useLocation()
 
   const isAdmin = profile?.role?.toLowerCase() === 'admin'
+
+  if (location.pathname === '/admin' && isOwner) {
+    return <Navigate to="/admin/owner" replace />
+  }
 
   if (!user || (!isOwner && !isAdmin)) {
     return (

@@ -60,7 +60,8 @@ export function Hero() {
               <motion.span
                 key={`${line}-${index}`}
                 variants={slideUp}
-                className={`block ${index === 1 ? 'text-lime animate-glitch' : ''}`}
+                className={index === 1 ? 'block animate-glitch' : 'block'}
+                style={index === 1 ? { color: settings?.hero_highlight_color ?? '#05C7F2' } : undefined}
               >
                 {line}
               </motion.span>

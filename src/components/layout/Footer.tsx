@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { Globe, ExternalLink, Image, MessageSquareShare } from 'lucide-react'
+import { ExternalLink, Image, MessageSquareShare } from 'lucide-react'
 
 export function Footer() {
   return (
@@ -43,7 +43,7 @@ export function Footer() {
             &copy; {new Date().getFullYear()} Magnus Store. Todos los derechos reservados.
           </p>
           <div className="flex items-center gap-4">
-            <a href="https://instagram.com/magnusstore" target="_blank" rel="noopener noreferrer" className="text-muted hover:text-white transition-colors">
+            <a href="https://www.instagram.com/magnusbrand.co?igsh=MW5uODFjZnJjMHF2ag==" target="_blank" rel="noopener noreferrer" className="text-muted hover:text-white transition-colors">
               <Image size={18} />
             </a>
             <a href="https://twitter.com" target="_blank" rel="noopener noreferrer" className="text-muted hover:text-white transition-colors">

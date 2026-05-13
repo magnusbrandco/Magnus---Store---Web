@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type ChangeEvent } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useSEO } from '@/hooks/useSEO'
 import { Modal, Toast } from '@/components/ui'
@@ -19,7 +19,11 @@ export default function BrandsAdmin() {
   const queryClient = useQueryClient()
   const [name, setName] = useState('')
   const [logoUrl, setLogoUrl] = useState('')
+  const [logoFile, setLogoFile] = useState<File | null>(null)
+  const [logoPreview, setLogoPreview] = useState<string | null>(null)
   const [coverUrl, setCoverUrl] = useState('')
+  const [coverFile, setCoverFile] = useState<File | null>(null)
+  const [coverPreview, setCoverPreview] = useState<string | null>(null)
 
   const [editingBrandId, setEditingBrandId] = useState<string | null>(null)
   const [editedName, setEditedName] = useState('')
@@ -47,6 +51,33 @@ export default function BrandsAdmin() {
     setToastVisible(true)
   }
 
+  const uploadImageToStorage = async (file: File, folder: string) => {
+    const fileName = `${folder}/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.\-_]/g, '_')}`
+    const { data, error } = await supabase.storage.from('images').upload(fileName, file, {
+      cacheControl: '3600',
+      upsert: true,
+    })
+    if (error) throw error
+    const { data: publicData } = supabase.storage.from('images').getPublicUrl(fileName)
+    return publicData.publicUrl
+  }
+
+  const handleLogoFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0] ?? null
+    if (!file) return
+    setLogoFile(file)
+    setLogoUrl('')
+    setLogoPreview(URL.createObjectURL(file))
+  }
+
+  const handleCoverFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0] ?? null
+    if (!file) return
+    setCoverFile(file)
+    setCoverUrl('')
+    setCoverPreview(URL.createObjectURL(file))
+  }
+
   const createBrand = useMutation({
     mutationFn: async () => {
       const trimmedName = name.trim()
@@ -61,11 +92,14 @@ export default function BrandsAdmin() {
       if (existingSlug.error) throw existingSlug.error
       if (existingSlug.data?.length) throw new Error('Ya existe una marca con ese slug.')
 
+      const logoPath = logoFile ? await uploadImageToStorage(logoFile, 'brands/logos') : logoUrl || null
+      const coverPath = coverFile ? await uploadImageToStorage(coverFile, 'brands/covers') : coverUrl || null
+
       const payload = {
         name: trimmedName,
         slug,
-        logo_url: logoUrl || null,
-        cover_url: coverUrl || null,
+        logo_url: logoPath,
+        cover_url: coverPath,
         description: null,
         is_featured: false,
         sort_order: 0,
@@ -79,7 +113,11 @@ export default function BrandsAdmin() {
       queryClient.invalidateQueries({ queryKey: ['admin', 'brands'] })
       setName('')
       setLogoUrl('')
+      setLogoFile(null)
+      setLogoPreview(null)
       setCoverUrl('')
+      setCoverFile(null)
+      setCoverPreview(null)
       showToast('Marca creada correctamente.', 'success')
     },
     onError: (error) => {
@@ -375,27 +413,64 @@ export default function BrandsAdmin() {
             />
           </label>
           <label className="block">
-            <span className="font-body text-sm text-muted">Logo URL</span>
+            <span className="font-body text-sm text-muted">Logo</span>
+            <input
+              type="file"
+              accept="image/*"
+              onChange={(event) => handleLogoFileChange(event)}
+              disabled={isBusy}
+              className="mt-2 w-full rounded border border-border bg-bg px-3 py-2 text-white file:cursor-pointer file:rounded-full file:border-none file:bg-bg-2 file:px-3 file:py-2"
+            />
             <input
               value={logoUrl}
-              onChange={(event) => setLogoUrl(event.target.value)}
+              onChange={(event) => {
+                setLogoUrl(event.target.value)
+                setLogoFile(null)
+                setLogoPreview(null)
+              }}
               disabled={isBusy}
-              className="mt-2 w-full rounded border border-border bg-bg px-3 py-2 text-white"
+              placeholder="O pega una URL"
+              className="mt-3 w-full rounded border border-border bg-bg px-3 py-2 text-white"
             />
-            {logoUrl && (
+            {(logoPreview || logoUrl) && (
               <div className="mt-2 overflow-hidden rounded-2xl border border-border bg-bg">
-                <img src={logoUrl} alt="Logo preview" className="h-20 w-full object-cover" />
+                <img
+                  src={logoPreview || logoUrl}
+                  alt="Logo preview"
+                  className="h-20 w-full object-cover"
+                />
               </div>
             )}
           </label>
           <label className="block">
-            <span className="font-body text-sm text-muted">Cover URL</span>
+            <span className="font-body text-sm text-muted">Cover</span>
+            <input
+              type="file"
+              accept="image/*"
+              onChange={(event) => handleCoverFileChange(event)}
+              disabled={isBusy}
+              className="mt-2 w-full rounded border border-border bg-bg px-3 py-2 text-white file:cursor-pointer file:rounded-full file:border-none file:bg-bg-2 file:px-3 file:py-2"
+            />
             <input
               value={coverUrl}
-              onChange={(event) => setCoverUrl(event.target.value)}
+              onChange={(event) => {
+                setCoverUrl(event.target.value)
+                setCoverFile(null)
+                setCoverPreview(null)
+              }}
               disabled={isBusy}
-              className="mt-2 w-full rounded border border-border bg-bg px-3 py-2 text-white"
+              placeholder="O pega una URL"
+              className="mt-3 w-full rounded border border-border bg-bg px-3 py-2 text-white"
             />
+            {(coverPreview || coverUrl) && (
+              <div className="mt-2 overflow-hidden rounded-2xl border border-border bg-bg">
+                <img
+                  src={coverPreview || coverUrl}
+                  alt="Cover preview"
+                  className="h-20 w-full object-cover"
+                />
+              </div>
+            )}
           </label>
           <div className="lg:col-span-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <button

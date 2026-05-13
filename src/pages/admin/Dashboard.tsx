@@ -12,6 +12,7 @@ const emptySettings: Omit<HomepageSetting, 'updated_at'> = {
   hero_primary_cta_link: '',
   hero_secondary_cta_label: '',
   hero_secondary_cta_link: '',
+  hero_highlight_color: '#05C7F2',
   categories_section_label: '',
   categories_section_title: '',
   brands_section_label: '',
@@ -137,6 +138,26 @@ export default function Dashboard() {
                   onChange={(event) => handleChange('hero_secondary_cta_link', event.target.value)}
                   className="mt-2 w-full rounded border border-border bg-bg px-3 py-2 text-white"
                 />
+              </label>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <label className="block">
+                <span className="font-body text-sm text-muted">Color del texto destacado</span>
+                <div className="mt-2 flex items-center gap-3">
+                  <input
+                    type="color"
+                    value={form.hero_highlight_color}
+                    onChange={(event) => handleChange('hero_highlight_color', event.target.value)}
+                    className="h-12 w-12 rounded border border-border bg-bg p-0"
+                  />
+                  <input
+                    value={form.hero_highlight_color}
+                    onChange={(event) => handleChange('hero_highlight_color', event.target.value)}
+                    placeholder="#05C7F2"
+                    className="w-full rounded border border-border bg-bg px-3 py-2 text-white"
+                  />
+                </div>
               </label>
             </div>
 

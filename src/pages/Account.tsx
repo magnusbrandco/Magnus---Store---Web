@@ -1,4 +1,5 @@
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useEffect } from 'react'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '@/hooks/useAuth'
 import { useOrders } from '@/hooks/useOrders'
 import { useSEO } from '@/hooks/useSEO'
@@ -17,8 +18,14 @@ export default function Account() {
   const [searchParams, setSearchParams] = useSearchParams()
   const activeTab = searchParams.get('tab') || 'perfil'
   const navigate = useNavigate()
-  const { user, signOut } = useAuth()
+  const { user, profile, isOwner, isLoading: authLoading, signOut } = useAuth()
   const { orders, isLoading } = useOrders()
+
+  useEffect(() => {
+    if (!authLoading && user && isOwner) {
+      navigate('/admin/owner', { replace: true })
+    }
+  }, [authLoading, isOwner, navigate, user])
 
   const handleSignOut = async () => {
     const success = await signOut()
@@ -66,6 +73,16 @@ export default function Account() {
         {activeTab === 'perfil' && (
           <div className="max-w-md space-y-4">
             <p className="font-body text-white">Email: {user.email}</p>
+            {(profile?.role?.toLowerCase() === 'admin' || isOwner) && (
+              <p>
+                <Link
+                  to="/admin"
+                  className="inline-flex items-center rounded-full border border-lime px-4 py-2 text-sm text-lime hover:bg-lime/10 transition-colors"
+                >
+                  Ir al panel de administrador
+                </Link>
+              </p>
+            )}
             <p className="font-body text-muted text-sm">Más opciones de perfil próximamente.</p>
           </div>
         )}

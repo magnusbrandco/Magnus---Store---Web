@@ -307,6 +307,7 @@ export interface HomepageSetting {
   hero_primary_cta_link: string
   hero_secondary_cta_label: string
   hero_secondary_cta_link: string
+  hero_highlight_color: string
   categories_section_label: string
   categories_section_title: string
   brands_section_label: string

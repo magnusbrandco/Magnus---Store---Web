@@ -20,14 +20,14 @@ const fetchProfile = async (userId: string) => {
     .from('profiles')
     .select('id, full_name, role, avatar_url')
     .eq('id', userId)
-    .single()
+    .maybeSingle()
 
   if (error) {
     console.warn('No profile found for auth user:', error.message)
     return null
   }
 
-  return data as Profile
+  return data ? (data as Profile) : null
 }
 
 const isOwnerEmail = (email: string | null): boolean =>
