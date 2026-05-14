@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
-import type { HomepageSetting } from '@/types/database'
+import type { HomepageSetting } from '@/lib/supabase-types'
+import type { Brand, Category } from '@/lib/supabase-types'
 
 export function useHomepageSettings() {
   return useQuery({
@@ -12,7 +13,7 @@ export function useHomepageSettings() {
         .single()
 
       if (error) throw error
-      return data as HomepageSetting
+      return data
     },
   })
 }
@@ -22,15 +23,15 @@ export function useUpdateHomepageSettings() {
 
   return useMutation({
     mutationFn: async (settings: HomepageSetting) => {
-      const { data, error } = await ((supabase as any)
+      const { data, error } = await supabase
         .from('homepage_settings')
         .update(settings)
         .eq('id', settings.id)
         .select()
-        .single())
+        .single()
 
       if (error) throw error
-      return data as HomepageSetting
+      return data
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['homepageSettings'] })
@@ -61,6 +62,13 @@ export function useHomeCounts() {
   })
 }
 
+type HomeCategory = Pick<
+  Category,
+  'id' | 'name' | 'slug' | 'description' | 'image_url' | 'sort_order'
+> & { products?: { id: string }[] }
+
+type HomeBrand = Pick<Brand, 'id' | 'name' | 'slug' | 'logo_url' | 'cover_url'>
+
 export function useHomeCategories() {
   return useQuery({
     queryKey: ['homeCategories'],
@@ -71,17 +79,7 @@ export function useHomeCategories() {
         .order('sort_order')
 
       if (error) throw error
-      return (
-        (data ?? []) as Array<{
-          id: string
-          name: string
-          slug: string
-          description: string | null
-          image_url: string | null
-          sort_order: number
-          products?: { id: string }[]
-        }>
-      ).map((category) => ({
+      return ((data ?? []) as HomeCategory[]).map((category) => ({
         ...category,
         count: category.products?.length ?? 0,
       }))
@@ -100,7 +98,7 @@ export function useHomeBrands() {
         .order('sort_order')
 
       if (error) throw error
-      return (data ?? []) as Array<{ id: string; name: string; slug: string; logo_url: string | null; cover_url: string | null }>
+      return (data ?? []) as HomeBrand[]
     },
   })
 }
