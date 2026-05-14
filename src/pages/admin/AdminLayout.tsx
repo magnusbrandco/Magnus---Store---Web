@@ -1,4 +1,4 @@
-import { Outlet, Link, Navigate, useLocation } from 'react-router-dom'
+import { Outlet, Link, useLocation } from 'react-router-dom'
 import { useAuth } from '@/hooks/useAuth'
 
 const adminLinks = [
@@ -6,7 +6,6 @@ const adminLinks = [
   { to: '/admin/productos', label: 'Productos' },
   { to: '/admin/marcas', label: 'Marcas' },
   { to: '/admin/categorias', label: 'Categorías' },
-  { to: '/admin/cupones', label: 'Cupones' },
   { to: '/admin/pedidos', label: 'Pedidos' },
   { to: '/admin/clientes', label: 'Clientes' },
   { to: '/admin/drops', label: 'Drops' },
@@ -19,13 +18,7 @@ export function AdminLayout() {
   const { user, profile, isOwner } = useAuth()
   const location = useLocation()
 
-  const isAdmin = profile?.role?.toLowerCase() === 'admin'
-
-  if (location.pathname === '/admin' && isOwner) {
-    return <Navigate to="/admin/owner" replace />
-  }
-
-  if (!user || (!isOwner && !isAdmin)) {
+  if (!user || (!isOwner && profile?.role !== 'admin')) {
     return (
       <div className="pt-24 pb-16 text-center">
         <p className="font-body text-muted">Debes iniciar sesión como administrador.</p>

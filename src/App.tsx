@@ -19,12 +19,6 @@ const BrandPage = lazy(() => import('@/pages/Brand'))
 const CategoryPage = lazy(() => import('@/pages/Category'))
 const Search = lazy(() => import('@/pages/Search'))
 const Auth = lazy(() => import('@/pages/Auth'))
-const Terminos = lazy(() => import('@/pages/Terminos'))
-const Privacidad = lazy(() => import('@/pages/Privacidad'))
-const Envio = lazy(() => import('@/pages/Envio'))
-const Devoluciones = lazy(() => import('@/pages/Devoluciones'))
-const FAQ = lazy(() => import('@/pages/FAQ'))
-const Contacto = lazy(() => import('@/pages/Contacto'))
 const NotFound = lazy(() => import('@/pages/NotFound'))
 
 const Dashboard = lazy(() => import('@/pages/admin/Dashboard'))
@@ -35,7 +29,6 @@ const CategoriesAdmin = lazy(() => import('@/pages/admin/CategoriesAdmin'))
 const OrdersAdmin = lazy(() => import('@/pages/admin/OrdersAdmin'))
 const CustomersAdmin = lazy(() => import('@/pages/admin/CustomersAdmin'))
 const DropsAdmin = lazy(() => import('@/pages/admin/DropsAdmin'))
-const CouponsAdmin = lazy(() => import('@/pages/admin/CouponsAdmin'))
 const AdminLayout = lazy(() => import('@/pages/admin/AdminLayout').then(m => ({ default: m.AdminLayout })))
 
 function PageLoader() {
@@ -74,12 +67,6 @@ export default function App() {
                 <Route path="/categoria/:slug" element={<CategoryPage />} />
                 <Route path="/buscar" element={<Search />} />
                 <Route path="/auth" element={<Auth />} />
-                <Route path="/terminos" element={<Terminos />} />
-                <Route path="/privacidad" element={<Privacidad />} />
-                <Route path="/envio" element={<Envio />} />
-                <Route path="/devoluciones" element={<Devoluciones />} />
-                <Route path="/faq" element={<FAQ />} />
-                <Route path="/contacto" element={<Contacto />} />
 
                 <Route path="/admin" element={<AdminLayout />}>
                   <Route index element={<Dashboard />} />
@@ -87,7 +74,6 @@ export default function App() {
                   <Route path="productos" element={<ProductsAdmin />} />
                   <Route path="marcas" element={<BrandsAdmin />} />
                   <Route path="categorias" element={<CategoriesAdmin />} />
-                  <Route path="cupones" element={<CouponsAdmin />} />
                   <Route path="pedidos" element={<OrdersAdmin />} />
                   <Route path="clientes" element={<CustomersAdmin />} />
                   <Route path="drops" element={<DropsAdmin />} />
