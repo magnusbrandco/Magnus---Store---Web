@@ -4,6 +4,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { useOrders } from '@/hooks/useOrders'
 import { useSEO } from '@/hooks/useSEO'
 import { formatCOP } from '@/lib/utils'
+import { notifications } from '@/lib/notifications'
 
 const tabs = [
   { id: 'perfil', label: 'Perfil' },
@@ -30,7 +31,10 @@ export default function Account() {
   const handleSignOut = async () => {
     const success = await signOut()
     if (success) {
+      notifications.success('Sesión cerrada', 'Has cerrado sesión exitosamente')
       navigate('/')
+    } else {
+      notifications.error('Error', 'No se pudo cerrar la sesión')
     }
   }
 

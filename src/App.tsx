@@ -4,6 +4,8 @@ import { QueryClientProvider } from '@tanstack/react-query'
 import { AnimatePresence } from 'framer-motion'
 import { queryClient } from '@/lib/queryClient'
 import { Layout } from '@/components/layout/Layout'
+import { ToastProvider } from '@/components/providers/ToastProvider'
+import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { Skeleton } from '@/components/ui/Skeleton'
 
 const Home = lazy(() => import('@/pages/Home'))
@@ -48,10 +50,12 @@ function PageLoader() {
 
 export default function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
-        <AnimatePresence mode="wait">
-          <Suspense fallback={<PageLoader />}>
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <BrowserRouter>
+          <ToastProvider />
+          <AnimatePresence mode="wait">
+            <Suspense fallback={<PageLoader />}>
             <Routes>
               <Route element={<Layout />}>
                 <Route path="/" element={<Home />} />
@@ -85,6 +89,7 @@ export default function App() {
           </Suspense>
         </AnimatePresence>
       </BrowserRouter>
-    </QueryClientProvider>
+      </QueryClientProvider>
+    </ErrorBoundary>
   )
 }
