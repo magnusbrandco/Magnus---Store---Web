@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { ExternalLink, Image, MessageSquareShare } from 'lucide-react'
+import { MessageCircle } from 'lucide-react'
 
 export function Footer() {
   return (
@@ -44,13 +44,14 @@ export function Footer() {
           </p>
           <div className="flex items-center gap-4">
             <a href="https://www.instagram.com/magnusbrand.co?igsh=MW5uODFjZnJjMHF2ag==" target="_blank" rel="noopener noreferrer" className="text-muted hover:text-white transition-colors">
-              <Image size={18} />
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect>
+                <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path>
+                <circle cx="17.5" cy="6.5" r="1.5"></circle>
+              </svg>
             </a>
-            <a href="https://twitter.com" target="_blank" rel="noopener noreferrer" className="text-muted hover:text-white transition-colors">
-              <ExternalLink size={18} />
-            </a>
-            <a href="https://youtube.com" target="_blank" rel="noopener noreferrer" className="text-muted hover:text-white transition-colors">
-              <MessageSquareShare size={18} />
+            <a href="https://wa.me/573216209183" target="_blank" rel="noopener noreferrer" className="text-muted hover:text-white transition-colors">
+              <MessageCircle size={18} />
             </a>
           </div>
         </div>

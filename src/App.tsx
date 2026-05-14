@@ -19,6 +19,12 @@ const BrandPage = lazy(() => import('@/pages/Brand'))
 const CategoryPage = lazy(() => import('@/pages/Category'))
 const Search = lazy(() => import('@/pages/Search'))
 const Auth = lazy(() => import('@/pages/Auth'))
+const Terminos = lazy(() => import('@/pages/Terminos'))
+const Privacidad = lazy(() => import('@/pages/Privacidad'))
+const Envio = lazy(() => import('@/pages/Envio'))
+const Devoluciones = lazy(() => import('@/pages/Devoluciones'))
+const FAQ = lazy(() => import('@/pages/FAQ'))
+const Contacto = lazy(() => import('@/pages/Contacto'))
 const NotFound = lazy(() => import('@/pages/NotFound'))
 
 const Dashboard = lazy(() => import('@/pages/admin/Dashboard'))
@@ -68,6 +74,12 @@ export default function App() {
                 <Route path="/categoria/:slug" element={<CategoryPage />} />
                 <Route path="/buscar" element={<Search />} />
                 <Route path="/auth" element={<Auth />} />
+                <Route path="/terminos" element={<Terminos />} />
+                <Route path="/privacidad" element={<Privacidad />} />
+                <Route path="/envio" element={<Envio />} />
+                <Route path="/devoluciones" element={<Devoluciones />} />
+                <Route path="/faq" element={<FAQ />} />
+                <Route path="/contacto" element={<Contacto />} />
 
                 <Route path="/admin" element={<AdminLayout />}>
                   <Route index element={<Dashboard />} />

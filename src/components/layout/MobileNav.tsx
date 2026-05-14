@@ -2,9 +2,11 @@ import { Link } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, Heart, User } from 'lucide-react'
 import { useUIStore } from '@/stores/uiStore'
+import { useAuth } from '@/hooks/useAuth'
 
 export function MobileNav() {
   const { isMobileMenuOpen, toggleMobileMenu } = useUIStore()
+  const { isAuthenticated } = useAuth()
 
   return (
     <AnimatePresence>
@@ -49,7 +51,7 @@ export function MobileNav() {
               <Link to="/favoritos" onClick={toggleMobileMenu} className="flex items-center gap-2 text-muted hover:text-white transition-colors">
                 <Heart size={16} /> Favoritos
               </Link>
-              <Link to="/cuenta" onClick={toggleMobileMenu} className="flex items-center gap-2 text-muted hover:text-white transition-colors">
+              <Link to={isAuthenticated ? '/cuenta' : '/auth'} onClick={toggleMobileMenu} className="flex items-center gap-2 text-muted hover:text-white transition-colors">
                 <User size={16} /> Cuenta
               </Link>
             </div>

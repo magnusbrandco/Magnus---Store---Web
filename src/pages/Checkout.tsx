@@ -28,12 +28,13 @@ export default function Checkout() {
     setCurrentStep(1)
   }
 
-  const handlePay = async () => {
-    // En producción, esto llamaría a la Edge Function create-order
-    // y luego inicializaría el widget de Wompi con la firma
-    const mockOrderId = 'order-' + Date.now()
-    const mockSignature = 'mock-signature'
-    initWompiWidget(mockOrderId, subtotal, mockSignature)
+  const handlePay = () => {
+    // Redirect to WhatsApp while payment methods are being configured
+    const whatsappNumber = '573216209183'
+    const message = encodeURIComponent(
+      `Hola, quiero completar mi pedido. Total: $${subtotal.toLocaleString('es-CO')}`
+    )
+    window.open(`https://wa.me/${whatsappNumber}?text=${message}`, '_blank')
   }
 
   return (

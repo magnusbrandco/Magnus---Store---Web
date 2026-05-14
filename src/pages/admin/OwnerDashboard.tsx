@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useAuth } from '@/hooks/useAuth'
 import { useSEO } from '@/hooks/useSEO'
 import { supabase } from '@/lib/supabase'
 
 export default function OwnerDashboard() {
+  const navigate = useNavigate()
   const { user, isOwner } = useAuth()
   const [stats, setStats] = useState({
     brands: 0,
@@ -54,6 +56,7 @@ export default function OwnerDashboard() {
   return (
     <div>
       <div className="mb-8">
+        <img src="/LOGO_NEGRO.svg" alt="Magnus" className="h-10 mb-4" />
         <p className="font-mono text-label text-lime">— Panel del dueño</p>
         <h1 className="font-display text-display-lg text-white mt-2">Bienvenido al panel del propietario</h1>
       </div>
@@ -143,18 +146,27 @@ export default function OwnerDashboard() {
           <h2 className="font-display text-display-sm text-white mb-4">Acciones del dueño</h2>
           <p className="font-body text-muted">Este panel muestra las interacciones clave para mantener el catálogo actualizado y seguir el desempeño del negocio.</p>
           <div className="mt-6 space-y-3">
-            <div className="rounded-3xl border border-border bg-bg p-4">
+            <button 
+              onClick={() => navigate('/admin/marcas')}
+              className="w-full rounded-3xl border border-border bg-bg p-4 text-left hover:bg-bg-2 transition-colors"
+            >
               <p className="font-body text-sm text-muted">Ver marcas</p>
               <p className="text-white">Accede al listado de marcas y revisa los logos cargados.</p>
-            </div>
-            <div className="rounded-3xl border border-border bg-bg p-4">
+            </button>
+            <button 
+              onClick={() => navigate('/admin/categorias')}
+              className="w-full rounded-3xl border border-border bg-bg p-4 text-left hover:bg-bg-2 transition-colors"
+            >
               <p className="font-body text-sm text-muted">Ver categorías</p>
               <p className="text-white">Administra la estructura y asigna nuevas categorías fácilmente.</p>
-            </div>
-            <div className="rounded-3xl border border-border bg-bg p-4">
+            </button>
+            <button 
+              onClick={() => navigate('/admin/pedidos')}
+              className="w-full rounded-3xl border border-border bg-bg p-4 text-left hover:bg-bg-2 transition-colors"
+            >
               <p className="font-body text-sm text-muted">Controlar órdenes</p>
               <p className="text-white">Supervisa pedidos y revisa que la operación esté activa.</p>
-            </div>
+            </button>
           </div>
         </div>
       </div>

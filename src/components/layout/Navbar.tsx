@@ -40,7 +40,7 @@ export function Navbar() {
           <button onClick={openSearch} className="text-muted hover:text-white transition-colors">
             <Search size={18} />
           </button>
-          <Link to={isAuthenticated ? '/cuenta' : '/auth'} className="hidden md:block text-muted hover:text-white transition-colors">
+          <Link to={isAuthenticated ? '/cuenta' : '/auth'} className="text-muted hover:text-white transition-colors">
             <User size={18} />
           </Link>
           <Link to="/favoritos" className="hidden md:block text-muted hover:text-white transition-colors">
