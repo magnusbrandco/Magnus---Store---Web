@@ -1,19 +1,19 @@
 import { useQuery, useMutation } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
-import type { Drop } from '@/types'
+import type { Drop, DropSubscriber } from '@/types'
 
 export function useDrops() {
-  return useQuery({
+  return useQuery<Drop[]>({
     queryKey: ['drops'],
     queryFn: async () => {
-      const { data, error } = await (supabase
+      const { data, error } = await supabase
         .from('drops')
         .select(`
           *,
           products:drop_products(product:products(*))
         `)
         .eq('is_published', true)
-        .order('drop_date', { ascending: true }) as any)
+        .order('drop_date', { ascending: true })
       if (error) throw error
       return (data ?? []) as Drop[]
     },
@@ -21,15 +21,15 @@ export function useDrops() {
 }
 
 export function useUpcomingDrops() {
-  return useQuery({
+  return useQuery<Drop[]>({
     queryKey: ['drops', 'upcoming'],
     queryFn: async () => {
-      const { data, error } = await (supabase
+      const { data, error } = await supabase
         .from('drops')
         .select('*')
         .eq('is_published', true)
         .gte('drop_date', new Date().toISOString())
-        .order('drop_date', { ascending: true }) as any)
+        .order('drop_date', { ascending: true })
       if (error) throw error
       return (data ?? []) as Drop[]
     },
@@ -37,15 +37,15 @@ export function useUpcomingDrops() {
 }
 
 export function useSubscribeToDrop() {
-  return useMutation({
-    mutationFn: async ({ dropId, email }: { dropId: string; email: string }) => {
-      const { data, error } = await (supabase
-        .from('drop_subscribers') as any)
-        .insert({ drop_id: dropId, email })
+  return useMutation<DropSubscriber, Error, { dropId: string; email: string }>({
+    mutationFn: async ({ dropId, email }) => {
+      const { data, error } = await supabase
+        .from('drop_subscribers')
+        .insert({ drop_id: dropId, email } as any)
         .select()
         .single()
       if (error) throw error
-      return data as Drop
+      return data as DropSubscriber
     },
   })
 }

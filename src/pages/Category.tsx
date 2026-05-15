@@ -1,6 +1,7 @@
 import { useParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
+import type { Category, ProductWithRelations } from '@/types'
 import { ProductGrid } from '@/components/products/ProductGrid'
 import { useSEO } from '@/hooks/useSEO'
 import { Skeleton } from '@/components/ui/Skeleton'
@@ -8,11 +9,11 @@ import { Skeleton } from '@/components/ui/Skeleton'
 export default function CategoryPage() {
   const { slug } = useParams<{ slug: string }>()
 
-  const { data: category } = useQuery({
+  const { data: category } = useQuery<Category | null>({
     queryKey: ['category', slug],
     queryFn: async () => {
-      const { data } = await (supabase.from('categories').select('*').eq('slug', slug!).single() as any)
-      return data as any
+      const { data } = await supabase.from('categories').select('*').eq('slug', slug!).single()
+      return data
     },
     enabled: !!slug,
   })
@@ -20,18 +21,18 @@ export default function CategoryPage() {
   const { data: products, isLoading } = useQuery({
     queryKey: ['category-products', slug],
     queryFn: async () => {
-      const { data } = await (supabase
+      const { data } = await supabase
         .from('products')
         .select('*, brand:brands(id, name, slug), variants:product_variants(id, size, color, color_hex, stock, price)')
         .eq('is_active', true)
-        .eq('category.slug', slug!) as any)
-      return (data ?? []) as any[]
+        .eq('category.slug', slug!)
+      return (data ?? []) as unknown as ProductWithRelations[]
     },
     enabled: !!slug,
   })
 
   useSEO({
-    title: category ? `${category.name} — Magnus` : 'Categoría | Magnus',
+    title: category ? `${(category as Category).name} — Magnus` : 'Categoría | Magnus',
   })
 
   return (

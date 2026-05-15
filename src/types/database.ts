@@ -2,100 +2,127 @@ export interface Json {
   [key: string]: unknown
 }
 
+type SupabaseRelationship = {
+  foreignKeyName: string
+  columns: string[]
+  referencedRelation: string
+  referencedColumns: string[]
+  isOneToOne?: boolean
+}
+
 export interface Database {
   public: {
     Tables: {
       profiles: {
-        Row: Profile
-        Insert: Omit<Profile, 'created_at' | 'updated_at'>
-        Update: Partial<Omit<Profile, 'id'>>
+        Row: Profile & Record<string, unknown>
+        Insert: Omit<Profile, 'created_at' | 'updated_at'> & Record<string, unknown>
+        Update: Partial<Omit<Profile, 'id'>> & Record<string, unknown>
+        Relationships: SupabaseRelationship[]
       }
       addresses: {
-        Row: Address
-        Insert: Omit<Address, 'id' | 'created_at'>
-        Update: Partial<Omit<Address, 'id'>>
+        Row: Address & Record<string, unknown>
+        Insert: Omit<Address, 'id' | 'created_at'> & Record<string, unknown>
+        Update: Partial<Omit<Address, 'id'>> & Record<string, unknown>
+        Relationships: SupabaseRelationship[]
       }
       brands: {
-        Row: Brand
-        Insert: Omit<Brand, 'id' | 'created_at'>
-        Update: Partial<Omit<Brand, 'id'>>
+        Row: Brand & Record<string, unknown>
+        Insert: Omit<Brand, 'id' | 'created_at'> & Record<string, unknown>
+        Update: Partial<Omit<Brand, 'id'>> & Record<string, unknown>
+        Relationships: SupabaseRelationship[]
       }
       categories: {
-        Row: Category
-        Insert: Omit<Category, 'id' | 'created_at'>
-        Update: Partial<Omit<Category, 'id'>>
+        Row: Category & Record<string, unknown>
+        Insert: Omit<Category, 'id' | 'created_at'> & Record<string, unknown>
+        Update: Partial<Omit<Category, 'id'>> & Record<string, unknown>
+        Relationships: SupabaseRelationship[]
       }
       products: {
-        Row: Product
-        Insert: Omit<Product, 'id' | 'created_at' | 'updated_at' | 'search_vector'>
-        Update: Partial<Omit<Product, 'id'>>
+        Row: Product & Record<string, unknown>
+        Insert: Omit<Product, 'id' | 'created_at' | 'updated_at' | 'search_vector'> & Record<string, unknown>
+        Update: Partial<Omit<Product, 'id'>> & Record<string, unknown>
+        Relationships: SupabaseRelationship[]
       }
       product_variants: {
-        Row: ProductVariant
-        Insert: Omit<ProductVariant, 'id' | 'created_at'>
-        Update: Partial<Omit<ProductVariant, 'id'>>
+        Row: ProductVariant & Record<string, unknown>
+        Insert: Omit<ProductVariant, 'id' | 'created_at'> & Record<string, unknown>
+        Update: Partial<Omit<ProductVariant, 'id'>> & Record<string, unknown>
+        Relationships: SupabaseRelationship[]
       }
       drops: {
-        Row: Drop
-        Insert: Omit<Drop, 'id' | 'created_at'>
-        Update: Partial<Omit<Drop, 'id'>>
+        Row: Drop & Record<string, unknown>
+        Insert: Omit<Drop, 'id' | 'created_at'> & Record<string, unknown>
+        Update: Partial<Omit<Drop, 'id'>> & Record<string, unknown>
+        Relationships: SupabaseRelationship[]
       }
       drop_products: {
-        Row: DropProduct
-        Insert: DropProduct
-        Update: Partial<DropProduct>
+        Row: DropProduct & Record<string, unknown>
+        Insert: DropProduct & Record<string, unknown>
+        Update: Partial<DropProduct> & Record<string, unknown>
+        Relationships: SupabaseRelationship[]
       }
       drop_subscribers: {
-        Row: DropSubscriber
-        Insert: Omit<DropSubscriber, 'id' | 'created_at'>
-        Update: Partial<Omit<DropSubscriber, 'id'>>
+        Row: DropSubscriber & Record<string, unknown>
+        Insert: Omit<DropSubscriber, 'id' | 'created_at'> & Record<string, unknown>
+        Update: Partial<Omit<DropSubscriber, 'id'>> & Record<string, unknown>
+        Relationships: SupabaseRelationship[]
       }
       carts: {
-        Row: Cart
-        Insert: Omit<Cart, 'id' | 'created_at' | 'updated_at'>
-        Update: Partial<Omit<Cart, 'id'>>
+        Row: Cart & Record<string, unknown>
+        Insert: Omit<Cart, 'id' | 'created_at' | 'updated_at'> & Record<string, unknown>
+        Update: Partial<Omit<Cart, 'id'>> & Record<string, unknown>
+        Relationships: SupabaseRelationship[]
       }
       cart_items: {
-        Row: CartItem
-        Insert: Omit<CartItem, 'id' | 'created_at'>
-        Update: Partial<Omit<CartItem, 'id'>>
+        Row: CartItem & Record<string, unknown>
+        Insert: Omit<CartItem, 'id' | 'created_at'> & Record<string, unknown>
+        Update: Partial<Omit<CartItem, 'id'>> & Record<string, unknown>
+        Relationships: SupabaseRelationship[]
       }
       orders: {
-        Row: Order
-        Insert: Omit<Order, 'id' | 'created_at' | 'updated_at' | 'order_number'>
-        Update: Partial<Omit<Order, 'id'>>
+        Row: Order & Record<string, unknown>
+        Insert: Omit<Order, 'id' | 'created_at' | 'updated_at' | 'order_number'> & Record<string, unknown>
+        Update: Partial<Omit<Order, 'id'>> & Record<string, unknown>
+        Relationships: SupabaseRelationship[]
       }
       order_items: {
-        Row: OrderItem
-        Insert: Omit<OrderItem, 'id'>
-        Update: Partial<Omit<OrderItem, 'id'>>
+        Row: OrderItem & Record<string, unknown>
+        Insert: Omit<OrderItem, 'id'> & Record<string, unknown>
+        Update: Partial<Omit<OrderItem, 'id'>> & Record<string, unknown>
+        Relationships: SupabaseRelationship[]
       }
       order_events: {
-        Row: OrderEvent
-        Insert: Omit<OrderEvent, 'id' | 'created_at'>
-        Update: Partial<Omit<OrderEvent, 'id'>>
+        Row: OrderEvent & Record<string, unknown>
+        Insert: Omit<OrderEvent, 'id' | 'created_at'> & Record<string, unknown>
+        Update: Partial<Omit<OrderEvent, 'id'>> & Record<string, unknown>
+        Relationships: SupabaseRelationship[]
       }
       wishlists: {
-        Row: WishlistItem
-        Insert: Omit<WishlistItem, 'created_at'>
-        Update: Partial<Omit<WishlistItem, 'created_at'>>
+        Row: WishlistItem & Record<string, unknown>
+        Insert: Omit<WishlistItem, 'created_at'> & Record<string, unknown>
+        Update: Partial<Omit<WishlistItem, 'created_at'>> & Record<string, unknown>
+        Relationships: SupabaseRelationship[]
       }
       reviews: {
-        Row: Review
-        Insert: Omit<Review, 'id' | 'created_at'>
-        Update: Partial<Omit<Review, 'id'>>
+        Row: Review & Record<string, unknown>
+        Insert: Omit<Review, 'id' | 'created_at'> & Record<string, unknown>
+        Update: Partial<Omit<Review, 'id'>> & Record<string, unknown>
+        Relationships: SupabaseRelationship[]
       }
       homepage_settings: {
-        Row: HomepageSetting
-        Insert: Omit<HomepageSetting, 'id' | 'updated_at'>
-        Update: Partial<Omit<HomepageSetting, 'id'>>
+        Row: HomepageSetting & Record<string, unknown>
+        Insert: Omit<HomepageSetting, 'id' | 'updated_at'> & Record<string, unknown>
+        Update: Partial<Omit<HomepageSetting, 'id'>> & Record<string, unknown>
+        Relationships: SupabaseRelationship[]
       }
       coupons: {
-        Row: Coupon
-        Insert: Omit<Coupon, 'id' | 'created_at'>
-        Update: Partial<Omit<Coupon, 'id'>>
+        Row: Coupon & Record<string, unknown>
+        Insert: Omit<Coupon, 'id' | 'created_at'> & Record<string, unknown>
+        Update: Partial<Omit<Coupon, 'id'>> & Record<string, unknown>
+        Relationships: SupabaseRelationship[]
       }
     }
+    Views: Record<string, never>
     Functions: {
       get_cart_totals: {
         Args: { p_user_id: string }

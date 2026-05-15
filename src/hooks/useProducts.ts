@@ -33,7 +33,7 @@ export function useProducts(filters: ProductFilters = {}) {
 
       const { data, error } = await query
       if (error) throw error
-      return (data ?? []) as ProductWithRelations[]
+      return (data ?? []) as unknown as ProductWithRelations[]
     },
     getNextPageParam: (lastPage, allPages) =>
       lastPage.length === 20 ? allPages.length : undefined,
@@ -56,9 +56,9 @@ export function useProduct(slug: string) {
         `)
         .eq('slug', slug)
         .eq('is_active', true)
-        .single() as any)
+        .single())
       if (error) throw error
-      return data as ProductWithRelations
+      return data as unknown as ProductWithRelations
     },
     enabled: !!slug,
   })
@@ -78,9 +78,9 @@ export function useFeaturedProducts() {
         .eq('is_active', true)
         .eq('is_featured', true)
         .order('created_at', { ascending: false })
-        .limit(8) as any)
+        .limit(8))
       if (error) throw error
-      return (data ?? []) as ProductWithRelations[]
+      return (data ?? []) as unknown as ProductWithRelations[]
     },
   })
 }

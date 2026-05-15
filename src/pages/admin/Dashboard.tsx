@@ -40,7 +40,7 @@ export default function Dashboard() {
   const handleSubmit = async (event: any) => {
     event.preventDefault()
     if (!form.id) return
-    await updateSettings.mutateAsync(form as HomepageSetting)
+    await updateSettings.mutateAsync(form as { id: string } & Partial<Omit<HomepageSetting, 'id'>>)
   }
 
   return (

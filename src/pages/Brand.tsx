@@ -1,6 +1,7 @@
 import { useParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
+import type { Brand, ProductWithRelations } from '@/types'
 import { ProductGrid } from '@/components/products/ProductGrid'
 import { useSEO } from '@/hooks/useSEO'
 import { Skeleton } from '@/components/ui/Skeleton'
@@ -8,11 +9,11 @@ import { Skeleton } from '@/components/ui/Skeleton'
 export default function BrandPage() {
   const { slug } = useParams<{ slug: string }>()
 
-  const { data: brand } = useQuery({
+  const { data: brand } = useQuery<Brand | null>({
     queryKey: ['brand', slug],
     queryFn: async () => {
-      const { data } = await (supabase.from('brands').select('*').eq('slug', slug!).single() as any)
-      return data as any
+      const { data } = await supabase.from('brands').select('*').eq('slug', slug!).single()
+      return data
     },
     enabled: !!slug,
   })
@@ -20,18 +21,18 @@ export default function BrandPage() {
   const { data: products, isLoading } = useQuery({
     queryKey: ['brand-products', slug],
     queryFn: async () => {
-      const { data } = await (supabase
+      const { data } = await supabase
         .from('products')
         .select('*, brand:brands(id, name, slug), variants:product_variants(id, size, color, color_hex, stock, price)')
         .eq('is_active', true)
-        .eq('brand.slug', slug!) as any)
-      return (data ?? []) as any[]
+        .eq('brand.slug', slug!)
+      return (data ?? []) as unknown as ProductWithRelations[]
     },
     enabled: !!slug,
   })
 
   useSEO({
-    title: brand ? `${brand.name} | Magnus` : 'Marca | Magnus',
+    title: brand ? `${(brand as Brand).name} | Magnus` : 'Marca | Magnus',
   })
 
   return (

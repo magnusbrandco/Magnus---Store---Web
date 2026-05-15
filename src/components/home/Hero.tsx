@@ -29,7 +29,7 @@ export function Hero() {
     )
   }
 
-  const heroTitleLines = settings?.hero_title?.split('\n') ?? ['CULTURA', 'URBANA', 'PREMIUM']
+  const heroTitleLines: string[] = settings?.hero_title?.split('\n') ?? ['CULTURA', 'URBANA', 'PREMIUM']
   const stats = [
     { value: counts?.brands ? `${counts.brands}` : '0', label: 'Marcas' },
     { value: counts?.categories ? `${counts.categories}` : 'Categorías' },

@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
+import type { ProductWithRelations } from '@/types'
 import { ProductCard } from './ProductCard'
 
 interface RelatedProductsProps {
@@ -16,12 +17,12 @@ export function RelatedProducts({ productId, categoryId }: RelatedProductsProps)
         .select('*, brand:brands(id, name, slug), variants:product_variants(id, size, color, color_hex, stock, price)')
         .eq('is_active', true)
         .neq('id', productId)
-        .limit(4) as any
+        .limit(4)
 
       if (categoryId) query = query.eq('category_id', categoryId)
 
       const { data } = await query
-      return (data ?? []) as any[]
+      return (data ?? []) as unknown as ProductWithRelations[]
     },
     enabled: !!productId,
   })

@@ -1,14 +1,13 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
-import type { Updates } from '@/lib/supabase-types'
-import type { Brand, Category } from '@/lib/supabase-types'
+import type { Brand, Category, HomepageSetting, Updates } from '@/lib/supabase-types'
 
-type HomepageSettingsUpdate = { id: string } & Updates<'homepage_settings'>
+type HomepageSettingsUpdate = { id: string } & Partial<Omit<HomepageSetting, 'id'>>
 
 export function useHomepageSettings() {
-  return useQuery({
+  return useQuery<HomepageSetting | null>({
     queryKey: ['homepageSettings'],
-    queryFn: async () => {
+    queryFn: async (): Promise<HomepageSetting | null> => {
       const { data, error } = await supabase
         .from('homepage_settings')
         .select('*')
@@ -23,12 +22,12 @@ export function useHomepageSettings() {
 export function useUpdateHomepageSettings() {
   const queryClient = useQueryClient()
 
-  return useMutation({
+  return useMutation<HomepageSetting, Error, HomepageSettingsUpdate>({
     mutationFn: async (settings: HomepageSettingsUpdate) => {
       const { id, ...payload } = settings
       const { data, error } = await supabase
         .from('homepage_settings')
-        .update(payload)
+        .update<Updates<'homepage_settings'>>(payload)
         .eq('id', id)
         .select()
         .single()
@@ -82,7 +81,7 @@ export function useHomeCategories() {
         .order('sort_order')
 
       if (error) throw error
-      return ((data ?? []) as HomeCategory[]).map((category) => ({
+      return ((data ?? []) as unknown as HomeCategory[]).map((category) => ({
         ...category,
         count: category.products?.length ?? 0,
       }))
