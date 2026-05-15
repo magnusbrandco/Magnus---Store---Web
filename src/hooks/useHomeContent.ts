@@ -1,7 +1,9 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
-import type { HomepageSetting } from '@/lib/supabase-types'
+import type { Updates } from '@/lib/supabase-types'
 import type { Brand, Category } from '@/lib/supabase-types'
+
+type HomepageSettingsUpdate = { id: string } & Updates<'homepage_settings'>
 
 export function useHomepageSettings() {
   return useQuery({
@@ -22,11 +24,12 @@ export function useUpdateHomepageSettings() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async (settings: HomepageSetting) => {
+    mutationFn: async (settings: HomepageSettingsUpdate) => {
+      const { id, ...payload } = settings
       const { data, error } = await supabase
         .from('homepage_settings')
-        .update(settings)
-        .eq('id', settings.id)
+        .update(payload)
+        .eq('id', id)
         .select()
         .single()
 
