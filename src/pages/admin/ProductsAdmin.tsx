@@ -13,7 +13,7 @@ type ProductFormState = {
   name: string
   slug: string
   description: string
-  imageUrl: string
+  imageUrls: string
   base_price: string
   compare_price: string
   brand_id: string
@@ -28,7 +28,7 @@ const initialFormState: ProductFormState = {
   name: '',
   slug: '',
   description: '',
-  imageUrl: '',
+  imageUrls: '',
   base_price: '',
   compare_price: '',
   brand_id: '',
@@ -52,7 +52,7 @@ export default function ProductsAdmin() {
 
   const queryClient = useQueryClient()
   const [form, setForm] = useState<ProductFormState>(initialFormState)
-  const [imageFile, setImageFile] = useState<File | null>(null)
+  const [imageFiles, setImageFiles] = useState<File[]>([])
   const [isCreating, setIsCreating] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
@@ -101,16 +101,16 @@ export default function ProductsAdmin() {
   }
 
   const handleImageFileChange = (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0] ?? null
-    setImageFile(file)
-    if (file) {
-      setForm((prev) => ({ ...prev, imageUrl: '' }))
+    const files = event.target.files ? Array.from(event.target.files) : []
+    setImageFiles(files)
+    if (files.length) {
+      setForm((prev) => ({ ...prev, imageUrls: '' }))
     }
   }
 
-  const handleImageUrlChange = (value: string) => {
-    setImageFile(null)
-    setForm((prev) => ({ ...prev, imageUrl: value }))
+  const handleImageUrlsChange = (value: string) => {
+    setImageFiles([])
+    setForm((prev) => ({ ...prev, imageUrls: value }))
   }
 
   const createProduct = useMutation({
@@ -122,8 +122,11 @@ export default function ProductsAdmin() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'products'] })
       setForm(initialFormState)
-      setImageFile(null)
+      setImageFiles([])
       setIsCreating(false)
+    },
+    onError: (error) => {
+      setSubmitError(error instanceof Error ? error.message : 'No se pudo crear el producto.')
     },
   })
 
@@ -141,7 +144,12 @@ export default function ProductsAdmin() {
     setIsSaving(true)
 
     try {
-      const imageUrl = imageFile ? await uploadImageToStorage(imageFile, 'products') : form.imageUrl
+      const uploadedImageUrls = imageFiles.length
+        ? await Promise.all(imageFiles.map((file) => uploadImageToStorage(file, 'products')))
+        : []
+      const fallbackImageUrls = form.imageUrls
+        ? form.imageUrls.split(',').map((url) => url.trim()).filter(Boolean)
+        : []
 
       const payload = {
         name: form.name,
@@ -151,7 +159,7 @@ export default function ProductsAdmin() {
         category_id: form.category_id || null,
         base_price: Number(form.base_price) || 0,
         compare_price: form.compare_price ? Number(form.compare_price) : null,
-        images: imageUrl ? [imageUrl] : [],
+        images: uploadedImageUrls.length ? uploadedImageUrls : fallbackImageUrls,
         tags: form.tags ? form.tags.split(',').map((tag) => tag.trim()).filter(Boolean) : [],
         is_active: form.is_active,
         is_featured: form.is_featured,
@@ -162,7 +170,6 @@ export default function ProductsAdmin() {
       await createProduct.mutateAsync(payload)
     } catch (error) {
       setSubmitError(error instanceof Error ? error.message : 'Error creando producto.')
-      throw error
     } finally {
       setIsSaving(false)
     }
@@ -293,22 +300,26 @@ export default function ProductsAdmin() {
               />
             </label>
             <label className="block">
-              <span className="font-body text-sm text-muted">Imagen de producto</span>
+              <span className="font-body text-sm text-muted">Imágenes del producto</span>
               <input
                 type="file"
                 accept="image/*"
+                multiple
                 onChange={handleImageFileChange}
                 className="mt-2 w-full rounded border border-border bg-bg px-3 py-2 text-white"
               />
               <p className="mt-2 text-xs text-muted">
-                Selecciona un archivo para subir. Si deseas usar una URL en vez de subir, deja el archivo vacío.
+                Selecciona hasta varias imágenes para el producto. Si quieres usar URLs en lugar de subir archivos, puedes pegarlas separadas por comas.
               </p>
+              {imageFiles.length > 0 && (
+                <p className="mt-2 text-xs text-muted">Archivos seleccionados: {imageFiles.length}</p>
+              )}
             </label>
             <label className="block">
-              <span className="font-body text-sm text-muted">O URL de imagen alternativa</span>
+              <span className="font-body text-sm text-muted">O URLs de imagen alternativa</span>
               <input
-                value={form.imageUrl}
-                onChange={(event) => handleImageUrlChange(event.target.value)}
+                value={form.imageUrls}
+                onChange={(event) => handleImageUrlsChange(event.target.value)}
                 className="mt-2 w-full rounded border border-border bg-bg px-3 py-2 text-white"
               />
             </label>
