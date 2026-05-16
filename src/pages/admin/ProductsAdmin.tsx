@@ -68,7 +68,12 @@ export default function ProductsAdmin() {
     },
   })
 
-  const { data: brands } = useQuery<Brand[]>({
+  const {
+    data: brands,
+    isLoading: isLoadingBrands,
+    isError: brandsError,
+    error: brandsErrorObj,
+  } = useQuery<Brand[]>({
     queryKey: ['admin', 'brands'],
     queryFn: async () => {
       const { data, error } = await (supabase.from('brands').select('id, name').order('name') as any)
@@ -77,7 +82,12 @@ export default function ProductsAdmin() {
     },
   })
 
-  const { data: categories } = useQuery<Category[]>({
+  const {
+    data: categories,
+    isLoading: isLoadingCategories,
+    isError: categoriesError,
+    error: categoriesErrorObj,
+  } = useQuery<Category[]>({
     queryKey: ['admin', 'categories'],
     queryFn: async () => {
       const { data, error } = await (supabase.from('categories').select('id, name').order('name') as any)
@@ -339,10 +349,14 @@ export default function ProductsAdmin() {
                 className="mt-2 w-full rounded border border-border bg-bg px-3 py-2 text-white"
               >
                 <option value="">Sin marca</option>
+                {isLoadingBrands && <option disabled>Cargando marcas...</option>}
                 {brands?.map((brand) => (
                   <option key={brand.id} value={brand.id}>{brand.name}</option>
                 ))}
               </select>
+              {brandsError && (
+                <p className="mt-2 text-xs text-red">Error cargando marcas: {brandsErrorObj?.message ?? 'No se pudo cargar'}</p>
+              )}
             </label>
             <label className="block">
               <span className="font-body text-sm text-muted">Categoría</span>
@@ -352,10 +366,14 @@ export default function ProductsAdmin() {
                 className="mt-2 w-full rounded border border-border bg-bg px-3 py-2 text-white"
               >
                 <option value="">Sin categoría</option>
+                {isLoadingCategories && <option disabled>Cargando categorías...</option>}
                 {categories?.map((category) => (
                   <option key={category.id} value={category.id}>{category.name}</option>
                 ))}
               </select>
+              {categoriesError && (
+                <p className="mt-2 text-xs text-red">Error cargando categorías: {categoriesErrorObj?.message ?? 'No se pudo cargar'}</p>
+              )}
             </label>
             <div className="flex flex-col gap-3 lg:col-span-2 md:flex-row md:items-center md:justify-between">
               <label className="flex items-center gap-2">
