@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type ChangeEvent } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useSEO } from '@/hooks/useSEO'
 import { supabase } from '@/lib/supabase'
@@ -52,7 +52,10 @@ export default function ProductsAdmin() {
 
   const queryClient = useQueryClient()
   const [form, setForm] = useState<ProductFormState>(initialFormState)
+  const [imageFile, setImageFile] = useState<File | null>(null)
   const [isCreating, setIsCreating] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
+  const [submitError, setSubmitError] = useState<string | null>(null)
   const { data, isLoading, error } = useQuery<ProductWithRelations[]>({
     queryKey: ['admin', 'products'],
     queryFn: async () => {
@@ -83,6 +86,33 @@ export default function ProductsAdmin() {
     },
   })
 
+  const uploadImageToStorage = async (file: File, folder: string) => {
+    const fileName = `${folder}/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.\-_]/g, '_')}`
+    const { data, error } = await supabase.storage.from('images').upload(fileName, file, {
+      cacheControl: '3600',
+      upsert: true,
+    })
+    if (error) throw error
+    const { data: publicData } = supabase.storage.from('images').getPublicUrl(fileName)
+    if (!publicData?.publicUrl) {
+      throw new Error('No se pudo generar la URL pública de la imagen.')
+    }
+    return publicData.publicUrl
+  }
+
+  const handleImageFileChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0] ?? null
+    setImageFile(file)
+    if (file) {
+      setForm((prev) => ({ ...prev, imageUrl: '' }))
+    }
+  }
+
+  const handleImageUrlChange = (value: string) => {
+    setImageFile(null)
+    setForm((prev) => ({ ...prev, imageUrl: value }))
+  }
+
   const createProduct = useMutation({
     mutationFn: async (payload: Record<string, unknown>) => {
       const { data, error } = await ((supabase as any).from('products').insert([payload]).select().single())
@@ -92,6 +122,7 @@ export default function ProductsAdmin() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'products'] })
       setForm(initialFormState)
+      setImageFile(null)
       setIsCreating(false)
     },
   })
@@ -106,24 +137,35 @@ export default function ProductsAdmin() {
 
   const handleSubmit = async (event: { preventDefault: () => void }) => {
     event.preventDefault()
+    setSubmitError(null)
+    setIsSaving(true)
 
-    const payload = {
-      name: form.name,
-      slug: form.slug || createSlug(form.name),
-      description: form.description || null,
-      brand_id: form.brand_id || null,
-      category_id: form.category_id || null,
-      base_price: Number(form.base_price) || 0,
-      compare_price: form.compare_price ? Number(form.compare_price) : null,
-      images: form.imageUrl ? [form.imageUrl] : [],
-      tags: form.tags ? form.tags.split(',').map((tag) => tag.trim()).filter(Boolean) : [],
-      is_active: form.is_active,
-      is_featured: form.is_featured,
-      is_drop: form.is_drop,
-      metadata: {},
+    try {
+      const imageUrl = imageFile ? await uploadImageToStorage(imageFile, 'products') : form.imageUrl
+
+      const payload = {
+        name: form.name,
+        slug: form.slug || createSlug(form.name),
+        description: form.description || null,
+        brand_id: form.brand_id || null,
+        category_id: form.category_id || null,
+        base_price: Number(form.base_price) || 0,
+        compare_price: form.compare_price ? Number(form.compare_price) : null,
+        images: imageUrl ? [imageUrl] : [],
+        tags: form.tags ? form.tags.split(',').map((tag) => tag.trim()).filter(Boolean) : [],
+        is_active: form.is_active,
+        is_featured: form.is_featured,
+        is_drop: form.is_drop,
+        metadata: {},
+      }
+
+      await createProduct.mutateAsync(payload)
+    } catch (error) {
+      setSubmitError(error instanceof Error ? error.message : 'Error creando producto.')
+      throw error
+    } finally {
+      setIsSaving(false)
     }
-
-    await createProduct.mutateAsync(payload)
   }
 
   let content
@@ -251,10 +293,22 @@ export default function ProductsAdmin() {
               />
             </label>
             <label className="block">
-              <span className="font-body text-sm text-muted">Imagen URL</span>
+              <span className="font-body text-sm text-muted">Imagen de producto</span>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleImageFileChange}
+                className="mt-2 w-full rounded border border-border bg-bg px-3 py-2 text-white"
+              />
+              <p className="mt-2 text-xs text-muted">
+                Selecciona un archivo para subir. Si deseas usar una URL en vez de subir, deja el archivo vacío.
+              </p>
+            </label>
+            <label className="block">
+              <span className="font-body text-sm text-muted">O URL de imagen alternativa</span>
               <input
                 value={form.imageUrl}
-                onChange={(event) => handleInput('imageUrl', event.target.value)}
+                onChange={(event) => handleImageUrlChange(event.target.value)}
                 className="mt-2 w-full rounded border border-border bg-bg px-3 py-2 text-white"
               />
             </label>
@@ -325,16 +379,18 @@ export default function ProductsAdmin() {
             <div className="lg:col-span-2 flex items-center gap-3">
               <button
                 type="submit"
-                disabled={createProduct.isPending}
+                disabled={createProduct.isPending || isSaving}
                 className="btn-primary inline-flex items-center justify-center rounded-full px-6 py-3"
               >
-                {createProduct.isPending ? 'Guardando...' : 'Guardar producto'}
+                {createProduct.isPending || isSaving ? 'Guardando...' : 'Guardar producto'}
               </button>
               {createProduct.isSuccess && (
                 <p className="font-body text-sm text-lime">Producto creado correctamente.</p>
               )}
-              {createProduct.isError && (
-                <p className="font-body text-sm text-red">Error: {createProduct.error instanceof Error ? createProduct.error.message : 'No se pudo crear'}</p>
+              {(createProduct.isError || submitError) && (
+                <p className="font-body text-sm text-red">
+                  Error: {submitError ?? (createProduct.error instanceof Error ? createProduct.error.message : 'No se pudo crear')}
+                </p>
               )}
             </div>
           </form>
