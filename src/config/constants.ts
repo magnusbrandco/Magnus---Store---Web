@@ -4,6 +4,7 @@ export const SITE_DESCRIPTION = 'Urban Culture & Streetwear en Colombia'
 
 export const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 export const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
+export const SUPABASE_STORAGE_BUCKET = import.meta.env.VITE_SUPABASE_STORAGE_BUCKET || 'images'
 
 export const WOMPI_PUBLIC_KEY = import.meta.env.VITE_WOMPI_PUBLIC_KEY || ''
 export const OWNER_EMAIL = import.meta.env.VITE_OWNER_EMAIL || 'magnusstore02@gmail.com'

@@ -1,6 +1,7 @@
 import { useState, type ChangeEvent } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useSEO } from '@/hooks/useSEO'
+import { SUPABASE_STORAGE_BUCKET } from '@/config/constants'
 import { supabase } from '@/lib/supabase'
 import type { Product, Brand, Category } from '@/types/database'
 
@@ -98,12 +99,12 @@ export default function ProductsAdmin() {
 
   const uploadImageToStorage = async (file: File, folder: string) => {
     const fileName = `${folder}/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.\-_]/g, '_')}`
-    const { data, error } = await supabase.storage.from('images').upload(fileName, file, {
+    const { data, error } = await supabase.storage.from(SUPABASE_STORAGE_BUCKET).upload(fileName, file, {
       cacheControl: '3600',
       upsert: true,
     })
     if (error) throw error
-    const { data: publicData } = supabase.storage.from('images').getPublicUrl(fileName)
+    const { data: publicData } = supabase.storage.from(SUPABASE_STORAGE_BUCKET).getPublicUrl(fileName)
     if (!publicData?.publicUrl) {
       throw new Error('No se pudo generar la URL pública de la imagen.')
     }
