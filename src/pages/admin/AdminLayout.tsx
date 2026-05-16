@@ -1,4 +1,4 @@
-import { Outlet, Link, useLocation } from 'react-router-dom'
+import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '@/hooks/useAuth'
 
 const adminLinks = [
@@ -15,8 +15,16 @@ const ownerLinks = [
 ]
 
 export function AdminLayout() {
-  const { user, profile, isOwner } = useAuth()
+  const { user, profile, isOwner, signOut } = useAuth()
   const location = useLocation()
+  const navigate = useNavigate()
+
+  const handleSignOut = async () => {
+    const success = await signOut()
+    if (success) {
+      navigate('/auth')
+    }
+  }
 
   if (!user || (!isOwner && profile?.role !== 'admin')) {
     return (
@@ -63,6 +71,13 @@ export function AdminLayout() {
                 {link.label}
               </Link>
             ))}
+            <button
+              type="button"
+              onClick={handleSignOut}
+              className="w-full text-left font-body text-sm px-4 py-2 text-red transition-colors hover:text-white"
+            >
+              Cerrar sesión
+            </button>
           </aside>
           <main className="flex-1">
             <Outlet />
