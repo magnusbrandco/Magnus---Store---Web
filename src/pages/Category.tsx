@@ -9,7 +9,7 @@ import { Skeleton } from '@/components/ui/Skeleton'
 export default function CategoryPage() {
   const { slug } = useParams<{ slug: string }>()
 
-  const { data: category } = useQuery<Category | null>({
+  const { data: category } = useQuery({
     queryKey: ['category', slug],
     queryFn: async () => {
       const { data } = await supabase.from('categories').select('*').eq('slug', slug!).single()
@@ -26,7 +26,7 @@ export default function CategoryPage() {
         .select('*, brand:brands(id, name, slug), variants:product_variants(id, size, color, color_hex, stock, price)')
         .eq('is_active', true)
         .eq('category.slug', slug!)
-      return (data ?? []) as unknown as ProductWithRelations[]
+      return (data ?? []) as ProductWithRelations[]
     },
     enabled: !!slug,
   })

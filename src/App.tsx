@@ -18,7 +18,6 @@ const Orders = lazy(() => import('@/pages/Orders'))
 const Wishlist = lazy(() => import('@/pages/Wishlist'))
 const Drops = lazy(() => import('@/pages/Drops'))
 const BrandPage = lazy(() => import('@/pages/Brand'))
-const BrandsPage = lazy(() => import('@/pages/Brands'))
 const CategoryPage = lazy(() => import('@/pages/Category'))
 const Search = lazy(() => import('@/pages/Search'))
 const Auth = lazy(() => import('@/pages/Auth'))
@@ -68,7 +67,6 @@ export default function App() {
                 <Route path="/pedidos" element={<Orders />} />
                 <Route path="/favoritos" element={<Wishlist />} />
                 <Route path="/drops" element={<Drops />} />
-                <Route path="/marcas" element={<BrandsPage />} />
                 <Route path="/marca/:slug" element={<BrandPage />} />
                 <Route path="/categoria/:slug" element={<CategoryPage />} />
                 <Route path="/buscar" element={<Search />} />

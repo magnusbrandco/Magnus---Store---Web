@@ -3,7 +3,7 @@ import { supabase } from '@/lib/supabase'
 import type { Drop, DropSubscriber } from '@/types'
 
 export function useDrops() {
-  return useQuery<Drop[]>({
+  return useQuery({
     queryKey: ['drops'],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -21,7 +21,7 @@ export function useDrops() {
 }
 
 export function useUpcomingDrops() {
-  return useQuery<Drop[]>({
+  return useQuery({
     queryKey: ['drops', 'upcoming'],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -37,11 +37,11 @@ export function useUpcomingDrops() {
 }
 
 export function useSubscribeToDrop() {
-  return useMutation<DropSubscriber, Error, { dropId: string; email: string }>({
-    mutationFn: async ({ dropId, email }) => {
+  return useMutation({
+    mutationFn: async ({ dropId, email }: { dropId: string; email: string }) => {
       const { data, error } = await supabase
         .from('drop_subscribers')
-        .insert({ drop_id: dropId, email } as any)
+        .insert({ drop_id: dropId, email })
         .select()
         .single()
       if (error) throw error

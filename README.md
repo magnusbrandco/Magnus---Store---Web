@@ -179,8 +179,8 @@ n8n/
 
 ### Requisitos
 - Node.js 18+
-- npm o pnpm
-- Cuenta de Supabase (variables de entorno)
+- npm
+- Variables de entorno para el cliente Supabase y la API de pagos
 
 ### Instalación
 
@@ -188,34 +188,31 @@ n8n/
 # Clonar repositorio
 git clone https://github.com/magnusbrandco/Magnus---Store---Web.git
 cd Magnus---Store---Web
-
-# Instalar dependencias
 npm install
+```
 
-# Crear archivo .env.local
-cat > .env.local << EOF
-VITE_SUPABASE_URL=tu_url_supabase
-VITE_SUPABASE_ANON_KEY=tu_anon_key
-VITE_WOMPI_PUBLIC_KEY=tu_wompi_key
+### Configuración local
+
+Crear un archivo `.env.local` con las variables que necesita el proyecto:
+
+```bash
+VITE_SUPABASE_URL=tu_supabase_url
+VITE_SUPABASE_ANON_KEY=tu_supabase_anon_key
 VITE_APP_URL=http://localhost:5173
-VITE_OWNER_EMAIL=magnusstore02@gmail.com
-EOF
+VITE_WOMPI_PUBLIC_KEY=tu_wompi_public_key
 ```
 
 ### Desarrollo
 
 ```bash
-# Servidor de desarrollo (http://localhost:5173)
 npm run dev
+```
 
-# Build para producción
+### Build
+
+```bash
 npm run build
-
-# Preview de build
 npm run preview
-
-# Lint
-npm run lint
 ```
 
 ---

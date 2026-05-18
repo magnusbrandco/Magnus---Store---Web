@@ -1,8 +1,7 @@
-import { useState, type ChangeEvent } from 'react'
+import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useSEO } from '@/hooks/useSEO'
 import { Modal, Toast } from '@/components/ui'
-import { SUPABASE_STORAGE_BUCKET } from '@/config/constants'
 import { supabase } from '@/lib/supabase'
 import type { Brand } from '@/types/database'
 
@@ -14,42 +13,17 @@ function createSlug(value: string) {
     .replaceAll(/[^a-z0-9-]/g, '')
 }
 
-function normalizeImageUrl(url: string) {
-  const trimmed = url.trim()
-  if (!trimmed) return null
-
-  const driveMatch = trimmed.match(/(?:drive\.google\.com\/(?:file\/d\/([a-zA-Z0-9_-]+)|open\?id=([a-zA-Z0-9_-]+))|docs\.google\.com\/uc\?id=([a-zA-Z0-9_-]+)|drive\.google\.com\/thumbnail\?id=([a-zA-Z0-9_-]+))(?:[&?].*)?/) 
-  if (driveMatch) {
-    const driveId = driveMatch.slice(1).find(Boolean)
-    return driveId ? `https://drive.google.com/uc?export=view&id=${driveId}` : trimmed
-  }
-
-  return trimmed
-}
-
 export default function BrandsAdmin() {
   useSEO({ title: 'Admin Marcas | Magnus' })
 
   const queryClient = useQueryClient()
   const [name, setName] = useState('')
-  const [description, setDescription] = useState('')
   const [logoUrl, setLogoUrl] = useState('')
-  const [logoFile, setLogoFile] = useState<File | null>(null)
-  const [logoPreview, setLogoPreview] = useState<string | null>(null)
   const [coverUrl, setCoverUrl] = useState('')
-  const [coverFile, setCoverFile] = useState<File | null>(null)
-  const [coverPreview, setCoverPreview] = useState<string | null>(null)
 
   const [editingBrandId, setEditingBrandId] = useState<string | null>(null)
   const [editedName, setEditedName] = useState('')
   const [editedSlug, setEditedSlug] = useState('')
-  const [editedDescription, setEditedDescription] = useState('')
-  const [editLogoUrl, setEditLogoUrl] = useState('')
-  const [editLogoFile, setEditLogoFile] = useState<File | null>(null)
-  const [editLogoPreview, setEditLogoPreview] = useState<string | null>(null)
-  const [editCoverUrl, setEditCoverUrl] = useState('')
-  const [editCoverFile, setEditCoverFile] = useState<File | null>(null)
-  const [editCoverPreview, setEditCoverPreview] = useState<string | null>(null)
 
   const [toastMessage, setToastMessage] = useState('')
   const [toastType, setToastType] = useState<'success' | 'error'>('success')
@@ -73,52 +47,6 @@ export default function BrandsAdmin() {
     setToastVisible(true)
   }
 
-  const uploadImageToStorage = async (file: File, folder: string) => {
-    const fileName = `${folder}/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.\-_]/g, '_')}`
-    const { data, error } = await supabase.storage.from(SUPABASE_STORAGE_BUCKET).upload(fileName, file, {
-      cacheControl: '3600',
-      upsert: true,
-    })
-    if (error) throw error
-    const { data: publicData } = supabase.storage.from(SUPABASE_STORAGE_BUCKET).getPublicUrl(fileName)
-    if (!publicData?.publicUrl) {
-      throw new Error('No se pudo generar la URL pública de la imagen.')
-    }
-    return publicData.publicUrl
-  }
-
-  const handleLogoFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0] ?? null
-    if (!file) return
-    setLogoFile(file)
-    setLogoUrl('')
-    setLogoPreview(URL.createObjectURL(file))
-  }
-
-  const handleCoverFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0] ?? null
-    if (!file) return
-    setCoverFile(file)
-    setCoverUrl('')
-    setCoverPreview(URL.createObjectURL(file))
-  }
-
-  const handleEditLogoFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0] ?? null
-    if (!file) return
-    setEditLogoFile(file)
-    setEditLogoUrl('')
-    setEditLogoPreview(URL.createObjectURL(file))
-  }
-
-  const handleEditCoverFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0] ?? null
-    if (!file) return
-    setEditCoverFile(file)
-    setEditCoverUrl('')
-    setEditCoverPreview(URL.createObjectURL(file))
-  }
-
   const createBrand = useMutation({
     mutationFn: async () => {
       const trimmedName = name.trim()
@@ -133,32 +61,27 @@ export default function BrandsAdmin() {
       if (existingSlug.error) throw existingSlug.error
       if (existingSlug.data?.length) throw new Error('Ya existe una marca con ese slug.')
 
-      const logoPath = logoFile ? await uploadImageToStorage(logoFile, 'brands/logos') : normalizeImageUrl(logoUrl)
-      const coverPath = coverFile ? await uploadImageToStorage(coverFile, 'brands/covers') : normalizeImageUrl(coverUrl)
-
       const payload = {
         name: trimmedName,
         slug,
-        logo_url: logoPath,
-        cover_url: coverPath,
-        description: description || null,
+        logo_url: logoUrl || null,
+        cover_url: coverUrl || null,
+        description: null,
         is_featured: false,
         sort_order: 0,
       }
 
-      const { data, error } = await ((supabase as any).from('brands').insert([payload]).select().single())
+      const { data, error } = await supabase.from('brands').insert(payload).select().single()
       if (error) throw error
       return data as Brand
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin', 'brands'] })
+    onSuccess: (data) => {
+      queryClient.setQueryData<Brand[]>(['admin', 'brands'], (old) =>
+        old ? [...old, data].sort((a, b) => a.name.localeCompare(b.name)) : [data]
+      )
       setName('')
       setLogoUrl('')
-      setLogoFile(null)
-      setLogoPreview(null)
       setCoverUrl('')
-      setCoverFile(null)
-      setCoverPreview(null)
       showToast('Marca creada correctamente.', 'success')
     },
     onError: (error) => {
@@ -167,7 +90,7 @@ export default function BrandsAdmin() {
   })
 
   const updateBrand = useMutation({
-    mutationFn: async (payload: { id: string; name: string; slug: string; description: string }) => {
+    mutationFn: async (payload: { id: string; name: string; slug: string }) => {
       const trimmedName = payload.name.trim()
       if (!trimmedName) throw new Error('El nombre es requerido.')
 
@@ -189,25 +112,19 @@ export default function BrandsAdmin() {
       if (existingSlug.error) throw existingSlug.error
       if (existingSlug.data?.length) throw new Error('Ya existe otro slug igual.')
 
-      const logoPath = editLogoFile ? await uploadImageToStorage(editLogoFile, 'brands/logos') : normalizeImageUrl(editLogoUrl)
-      const coverPath = editCoverFile ? await uploadImageToStorage(editCoverFile, 'brands/covers') : normalizeImageUrl(editCoverUrl)
-      const { data, error } = await ((supabase as any)
+      const { data, error } = await supabase
         .from('brands')
-        .update({
-          name: trimmedName,
-          slug: payload.slug,
-          description: payload.description || null,
-          logo_url: logoPath,
-          cover_url: coverPath,
-        })
+        .update({ name: trimmedName, slug: payload.slug })
         .eq('id', payload.id)
         .select()
-        .single())
+        .single()
       if (error) throw error
       return data as Brand
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin', 'brands'] })
+    onSuccess: (data) => {
+      queryClient.setQueryData<Brand[]>(['admin', 'brands'], (old) =>
+        old ? old.map((brand) => (brand.id === data.id ? data : brand)).sort((a, b) => a.name.localeCompare(b.name)) : [data]
+      )
       resetEditBrand()
       showToast('Marca actualizada correctamente.', 'success')
     },
@@ -222,8 +139,10 @@ export default function BrandsAdmin() {
       if (error) throw error
       return data as Brand
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin', 'brands'] })
+    onSuccess: (_, id) => {
+      queryClient.setQueryData<Brand[]>(['admin', 'brands'], (old) =>
+        old ? old.filter((brand) => brand.id !== id) : []
+      )
       if (editingBrandId) resetEditBrand()
       showToast('Marca eliminada correctamente.', 'success')
     },
@@ -232,7 +151,10 @@ export default function BrandsAdmin() {
     },
   })
 
-  const isBusy = createBrand.isPending || updateBrand.isPending || deleteBrand.isPending
+  const isBusy =
+    createBrand.status === 'pending' ||
+    updateBrand.status === 'pending' ||
+    deleteBrand.status === 'pending'
 
   const handleSubmit = async (event: { preventDefault: () => void }) => {
     event.preventDefault()
@@ -244,26 +166,12 @@ export default function BrandsAdmin() {
     setEditingBrandId(brand.id)
     setEditedName(brand.name)
     setEditedSlug(brand.slug ?? '')
-    setEditedDescription(brand.description ?? '')
-    setEditLogoUrl(brand.logo_url ?? '')
-    setEditLogoFile(null)
-    setEditLogoPreview(null)
-    setEditCoverUrl(brand.cover_url ?? '')
-    setEditCoverFile(null)
-    setEditCoverPreview(null)
   }
 
   const resetEditBrand = () => {
     setEditingBrandId(null)
     setEditedName('')
     setEditedSlug('')
-    setEditedDescription('')
-    setEditLogoUrl('')
-    setEditLogoFile(null)
-    setEditLogoPreview(null)
-    setEditCoverUrl('')
-    setEditCoverFile(null)
-    setEditCoverPreview(null)
   }
 
   const handleDeleteBrand = (brand: Brand) => {
@@ -289,7 +197,6 @@ export default function BrandsAdmin() {
         id: editingBrandId,
         name: editedName.trim(),
         slug: createSlug(editedSlug || editedName),
-        description: editedDescription,
       })
     } finally {
       setSavingBrandId(null)
@@ -337,8 +244,28 @@ export default function BrandsAdmin() {
                       )}
                     </div>
                   </td>
-                  <td className="px-4 py-4">{brand.name}</td>
-                  <td className="px-4 py-4">{brand.slug}</td>
+                  <td className="px-4 py-4">
+                    {isEditing ? (
+                      <input
+                        value={editedName}
+                        onChange={(event) => setEditedName(event.target.value)}
+                        className="w-full rounded border border-border bg-bg px-2 py-1 text-white"
+                      />
+                    ) : (
+                      brand.name
+                    )}
+                  </td>
+                  <td className="px-4 py-4">
+                    {isEditing ? (
+                      <input
+                        value={editedSlug}
+                        onChange={(event) => setEditedSlug(event.target.value)}
+                        className="w-full rounded border border-border bg-bg px-2 py-1 text-white"
+                      />
+                    ) : (
+                      brand.slug
+                    )}
+                  </td>
                   <td className="px-4 py-4">{new Date(brand.created_at).toLocaleDateString()}</td>
                   <td className="px-4 py-4">
                     <div className="flex flex-wrap gap-2">
@@ -456,74 +383,28 @@ export default function BrandsAdmin() {
               className="mt-2 w-full rounded border border-border bg-bg/80 px-3 py-2 text-white"
             />
           </label>
-          <label className="block lg:col-span-4">
-            <span className="font-body text-sm text-muted">Descripción</span>
-            <textarea
-              value={description}
-              onChange={(event) => setDescription(event.target.value)}
-              disabled={isBusy}
-              className="mt-2 w-full min-h-[120px] rounded border border-border bg-bg px-3 py-2 text-white"
-            />
-          </label>
           <label className="block">
-            <span className="font-body text-sm text-muted">Logo</span>
-            <input
-              type="file"
-              accept="image/*"
-              onChange={(event) => handleLogoFileChange(event)}
-              disabled={isBusy}
-              className="mt-2 w-full rounded border border-border bg-bg px-3 py-2 text-white file:cursor-pointer file:rounded-full file:border-none file:bg-bg-2 file:px-3 file:py-2"
-            />
+            <span className="font-body text-sm text-muted">Logo URL</span>
             <input
               value={logoUrl}
-              onChange={(event) => {
-                setLogoUrl(event.target.value)
-                setLogoFile(null)
-                setLogoPreview(null)
-              }}
+              onChange={(event) => setLogoUrl(event.target.value)}
               disabled={isBusy}
-              placeholder="O pega una URL"
-              className="mt-3 w-full rounded border border-border bg-bg px-3 py-2 text-white"
+              className="mt-2 w-full rounded border border-border bg-bg px-3 py-2 text-white"
             />
-            {(logoPreview || logoUrl) && (
+            {logoUrl && (
               <div className="mt-2 overflow-hidden rounded-2xl border border-border bg-bg">
-                <img
-                  src={logoPreview || logoUrl}
-                  alt="Logo preview"
-                  className="h-20 w-full object-cover"
-                />
+                <img src={logoUrl} alt="Logo preview" className="h-20 w-full object-cover" />
               </div>
             )}
           </label>
           <label className="block">
-            <span className="font-body text-sm text-muted">Cover</span>
-            <input
-              type="file"
-              accept="image/*"
-              onChange={(event) => handleCoverFileChange(event)}
-              disabled={isBusy}
-              className="mt-2 w-full rounded border border-border bg-bg px-3 py-2 text-white file:cursor-pointer file:rounded-full file:border-none file:bg-bg-2 file:px-3 file:py-2"
-            />
+            <span className="font-body text-sm text-muted">Cover URL</span>
             <input
               value={coverUrl}
-              onChange={(event) => {
-                setCoverUrl(event.target.value)
-                setCoverFile(null)
-                setCoverPreview(null)
-              }}
+              onChange={(event) => setCoverUrl(event.target.value)}
               disabled={isBusy}
-              placeholder="O pega una URL"
-              className="mt-3 w-full rounded border border-border bg-bg px-3 py-2 text-white"
+              className="mt-2 w-full rounded border border-border bg-bg px-3 py-2 text-white"
             />
-            {(coverPreview || coverUrl) && (
-              <div className="mt-2 overflow-hidden rounded-2xl border border-border bg-bg">
-                <img
-                  src={coverPreview || coverUrl}
-                  alt="Cover preview"
-                  className="h-20 w-full object-cover"
-                />
-              </div>
-            )}
           </label>
           <div className="lg:col-span-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <button
@@ -531,7 +412,7 @@ export default function BrandsAdmin() {
               disabled={isBusy}
               className="btn-primary rounded-full px-6 py-3"
             >
-              {createBrand.isPending ? 'Guardando...' : 'Crear marca'}
+              {createBrand.status === 'pending' ? 'Guardando...' : 'Crear marca'}
             </button>
             <div className="space-y-1">
               {createBrand.isSuccess && (
@@ -544,115 +425,6 @@ export default function BrandsAdmin() {
           </div>
         </form>
       </section>
-
-      {editingBrandId && (
-        <section className="mb-8 rounded-3xl border border-border bg-bg-3 p-6">
-          <div className="mb-6">
-            <p className="font-mono text-label text-lime">— Editar marca</p>
-            <h2 className="font-display text-display-sm text-white mt-2">Edita los datos de la marca seleccionada</h2>
-          </div>
-          <div className="grid gap-4 lg:grid-cols-4">
-            <label className="block">
-              <span className="font-body text-sm text-muted">Nombre</span>
-              <input
-                value={editedName}
-                onChange={(event) => setEditedName(event.target.value)}
-                className="mt-2 w-full rounded border border-border bg-bg px-3 py-2 text-white"
-              />
-            </label>
-            <label className="block">
-              <span className="font-body text-sm text-muted">Slug</span>
-              <input
-                value={editedSlug}
-                onChange={(event) => setEditedSlug(event.target.value)}
-                className="mt-2 w-full rounded border border-border bg-bg px-3 py-2 text-white"
-              />
-            </label>
-            <label className="block lg:col-span-4">
-              <span className="font-body text-sm text-muted">Descripción</span>
-              <textarea
-                value={editedDescription}
-                onChange={(event) => setEditedDescription(event.target.value)}
-                className="mt-2 w-full min-h-[120px] rounded border border-border bg-bg px-3 py-2 text-white"
-              />
-            </label>
-            <label className="block">
-              <span className="font-body text-sm text-muted">Logo</span>
-              <input
-                type="file"
-                accept="image/*"
-                onChange={handleEditLogoFileChange}
-                className="mt-2 w-full rounded border border-border bg-bg px-3 py-2 text-white file:cursor-pointer file:rounded-full file:border-none file:bg-bg-2 file:px-3 file:py-2"
-              />
-              <input
-                value={editLogoUrl}
-                onChange={(event) => {
-                  setEditLogoUrl(event.target.value)
-                  setEditLogoFile(null)
-                  setEditLogoPreview(null)
-                }}
-                placeholder="O pega una URL"
-                className="mt-3 w-full rounded border border-border bg-bg px-3 py-2 text-white"
-              />
-              {(editLogoPreview || editLogoUrl) && (
-                <div className="mt-2 overflow-hidden rounded-2xl border border-border bg-bg">
-                  <img
-                    src={editLogoPreview || editLogoUrl}
-                    alt="Logo preview"
-                    className="h-20 w-full object-cover"
-                  />
-                </div>
-              )}
-            </label>
-            <label className="block">
-              <span className="font-body text-sm text-muted">Cover</span>
-              <input
-                type="file"
-                accept="image/*"
-                onChange={handleEditCoverFileChange}
-                className="mt-2 w-full rounded border border-border bg-bg px-3 py-2 text-white file:cursor-pointer file:rounded-full file:border-none file:bg-bg-2 file:px-3 file:py-2"
-              />
-              <input
-                value={editCoverUrl}
-                onChange={(event) => {
-                  setEditCoverUrl(event.target.value)
-                  setEditCoverFile(null)
-                  setEditCoverPreview(null)
-                }}
-                placeholder="O pega una URL"
-                className="mt-3 w-full rounded border border-border bg-bg px-3 py-2 text-white"
-              />
-              {(editCoverPreview || editCoverUrl) && (
-                <div className="mt-2 overflow-hidden rounded-2xl border border-border bg-bg">
-                  <img
-                    src={editCoverPreview || editCoverUrl}
-                    alt="Cover preview"
-                    className="h-20 w-full object-cover"
-                  />
-                </div>
-              )}
-            </label>
-            <div className="lg:col-span-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <button
-                type="button"
-                onClick={handleSaveBrand}
-                disabled={isBusy || savingBrandId === editingBrandId}
-                className="btn-primary rounded-full px-6 py-3"
-              >
-                {savingBrandId === editingBrandId ? 'Guardando...' : 'Actualizar marca'}
-              </button>
-              <button
-                type="button"
-                onClick={resetEditBrand}
-                disabled={isBusy}
-                className="rounded-full border border-border px-6 py-3 text-muted hover:text-white"
-              >
-                Cancelar edición
-              </button>
-            </div>
-          </div>
-        </section>
-      )}
 
       <section className="rounded-3xl border border-border bg-bg-3 p-6">
         <div className="mb-6">

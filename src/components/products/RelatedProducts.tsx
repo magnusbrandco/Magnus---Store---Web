@@ -22,7 +22,7 @@ export function RelatedProducts({ productId, categoryId }: RelatedProductsProps)
       if (categoryId) query = query.eq('category_id', categoryId)
 
       const { data } = await query
-      return (data ?? []) as unknown as ProductWithRelations[]
+      return (data ?? []) as ProductWithRelations[]
     },
     enabled: !!productId,
   })

@@ -7,7 +7,7 @@ export function useWishlist() {
   const { user } = useAuth()
   const queryClient = useQueryClient()
 
-  const { data: wishlist = [], isLoading } = useQuery<string[]>({
+  const { data: wishlist = [], isLoading } = useQuery({
     queryKey: ['wishlist', user?.id],
     queryFn: async () => {
       if (!user) return []
@@ -16,7 +16,7 @@ export function useWishlist() {
         .select('product_id, created_at')
         .eq('user_id', user.id)
       if (error) throw error
-      return (data ?? []).map((w: { product_id: string; created_at: string }) => w.product_id)
+      return (data ?? []).map((w: WishlistItem) => w.product_id)
     },
     enabled: !!user,
   })
@@ -34,7 +34,7 @@ export function useWishlist() {
       } else {
         await supabase
           .from('wishlists')
-          .insert({ user_id: user.id, product_id: productId } as any)
+          .insert({ user_id: user.id, product_id: productId })
       }
     },
     onSuccess: () => {
