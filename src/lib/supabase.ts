@@ -8,4 +8,9 @@ if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
   )
 }
 
-export const supabase = createClient<Database, 'public'>(SUPABASE_URL, SUPABASE_ANON_KEY)
+export const supabase = createClient<Database, 'public'>(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  auth: {
+    persistSession: true,
+    autoRefreshToken: true,
+  },
+})
