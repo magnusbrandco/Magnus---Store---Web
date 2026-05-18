@@ -18,7 +18,7 @@ interface AuthStore {
 const fetchProfile = async (userId: string) => {
   const { data, error } = await supabase
     .from('profiles')
-    .select('id, full_name, role, avatar_url')
+    .select('id, full_name, phone, role, avatar_url')
     .eq('id', userId)
     .maybeSingle()
 

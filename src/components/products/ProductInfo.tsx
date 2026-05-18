@@ -1,11 +1,14 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Heart, ChevronDown, ChevronUp } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { SizeSelector } from './SizeSelector'
 import { ColorSelector } from './ColorSelector'
 import { formatCOP } from '@/lib/utils'
+import { useAuth } from '@/hooks/useAuth'
+import { useWishlist } from '@/hooks/useWishlist'
+import { notifications } from '@/lib/notifications'
 import type { ProductWithRelations } from '@/types'
 
 interface ProductInfoProps {
@@ -14,6 +17,11 @@ interface ProductInfoProps {
 }
 
 export function ProductInfo({ product, onAddToCart }: ProductInfoProps) {
+  const navigate = useNavigate()
+  const { user } = useAuth()
+  const { isInWishlist, toggleWishlist } = useWishlist()
+  const inWishlist = isInWishlist(product.id)
+
   const [selectedSize, setSelectedSize] = useState('')
   const [selectedColor, setSelectedColor] = useState('')
   const [quantity, setQuantity] = useState(1)
@@ -107,8 +115,20 @@ export function ProductInfo({ product, onAddToCart }: ProductInfoProps) {
         >
           Agregar al carrito
         </Button>
-        <Button variant="outline" size="lg" className="px-4">
-          <Heart size={18} />
+        <Button
+          variant="outline"
+          size="lg"
+          className={`px-4 ${inWishlist ? 'border-lime text-lime' : ''}`}
+          onClick={() => {
+            if (!user) {
+              notifications.error('Inicia sesión', 'Debes iniciar sesión para usar favoritos.')
+              navigate('/auth?mode=login')
+              return
+            }
+            toggleWishlist(product.id)
+          }}
+        >
+          <Heart size={18} className={inWishlist ? 'text-lime' : ''} />
         </Button>
       </div>
 

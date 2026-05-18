@@ -32,6 +32,7 @@ export default function CategoriesAdmin() {
 
   const queryClient = useQueryClient()
   const [name, setName] = useState('')
+  const [description, setDescription] = useState('')
   const [imageUrl, setImageUrl] = useState('')
   const [imageFile, setImageFile] = useState<File | null>(null)
   const [imagePreview, setImagePreview] = useState<string | null>(null)
@@ -40,7 +41,11 @@ export default function CategoriesAdmin() {
   const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null)
   const [editedName, setEditedName] = useState('')
   const [editedSlug, setEditedSlug] = useState('')
+  const [editedDescription, setEditedDescription] = useState('')
   const [editedParentId, setEditedParentId] = useState<string | null>(null)
+  const [editImageUrl, setEditImageUrl] = useState('')
+  const [editImageFile, setEditImageFile] = useState<File | null>(null)
+  const [editImagePreview, setEditImagePreview] = useState<string | null>(null)
 
   const [toastMessage, setToastMessage] = useState('')
   const [toastType, setToastType] = useState<'success' | 'error'>('success')
@@ -86,6 +91,14 @@ export default function CategoriesAdmin() {
     setImagePreview(URL.createObjectURL(file))
   }
 
+  const handleEditImageFileChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0] ?? null
+    if (!file) return
+    setEditImageFile(file)
+    setEditImageUrl('')
+    setEditImagePreview(URL.createObjectURL(file))
+  }
+
   const createCategory = useMutation({
     mutationFn: async () => {
       const trimmedName = name.trim()
@@ -105,7 +118,7 @@ export default function CategoriesAdmin() {
       const payload = {
         name: trimmedName,
         slug,
-        description: null,
+        description: description || null,
         image_url: imagePath,
         parent_id: parentId || null,
         sort_order: 0,
@@ -118,6 +131,7 @@ export default function CategoriesAdmin() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'categories'] })
       setName('')
+      setDescription('')
       setImageUrl('')
       setImageFile(null)
       setImagePreview(null)
@@ -130,7 +144,7 @@ export default function CategoriesAdmin() {
   })
 
   const updateCategory = useMutation({
-    mutationFn: async (payload: { id: string; name: string; slug: string; parent_id: string | null }) => {
+    mutationFn: async (payload: { id: string; name: string; slug: string; description: string | null; parent_id: string | null }) => {
       const trimmedName = payload.name.trim()
       if (!trimmedName) throw new Error('El nombre es requerido.')
 
@@ -152,9 +166,16 @@ export default function CategoriesAdmin() {
       if (existingSlug.error) throw existingSlug.error
       if (existingSlug.data?.length) throw new Error('Ya existe otro slug igual.')
 
+      const imagePath = editImageFile ? await uploadImageToStorage(editImageFile, 'categories/images') : normalizeImageUrl(editImageUrl)
       const { data, error } = await ((supabase as any)
         .from('categories')
-        .update({ name: trimmedName, slug: payload.slug, parent_id: payload.parent_id || null })
+        .update({
+          name: trimmedName,
+          slug: payload.slug,
+          description: payload.description || null,
+          image_url: imagePath,
+          parent_id: payload.parent_id || null,
+        })
         .eq('id', payload.id)
         .select()
         .single())
@@ -199,14 +220,22 @@ export default function CategoriesAdmin() {
     setEditingCategoryId(category.id)
     setEditedName(category.name)
     setEditedSlug(category.slug ?? '')
+    setEditedDescription(category.description ?? '')
     setEditedParentId(category.parent_id)
+    setEditImageUrl(category.image_url ?? '')
+    setEditImageFile(null)
+    setEditImagePreview(null)
   }
 
   const resetEditCategory = () => {
     setEditingCategoryId(null)
     setEditedName('')
     setEditedSlug('')
+    setEditedDescription('')
     setEditedParentId(null)
+    setEditImageUrl('')
+    setEditImageFile(null)
+    setEditImagePreview(null)
   }
 
   const handleDeleteCategory = (category: Category) => {
@@ -232,6 +261,7 @@ export default function CategoriesAdmin() {
         id: editingCategoryId,
         name: editedName.trim(),
         slug: createSlug(editedSlug || editedName),
+        description: editedDescription || null,
         parent_id: editedParentId || null,
       })
     } finally {
@@ -441,6 +471,15 @@ export default function CategoriesAdmin() {
               className="mt-2 w-full rounded border border-border bg-bg/80 px-3 py-2 text-white"
             />
           </label>
+          <label className="block lg:col-span-4">
+            <span className="font-body text-sm text-muted">Descripción</span>
+            <textarea
+              value={description}
+              onChange={(event) => setDescription(event.target.value)}
+              disabled={isBusy}
+              className="mt-2 w-full min-h-[120px] rounded border border-border bg-bg px-3 py-2 text-white"
+            />
+          </label>
           <label className="block">
             <span className="font-body text-sm text-muted">Imagen</span>
             <input
@@ -504,6 +543,103 @@ export default function CategoriesAdmin() {
           </div>
         </form>
       </section>
+
+      {editingCategoryId && (
+        <section className="mb-8 rounded-3xl border border-border bg-bg-3 p-6">
+          <div className="mb-6">
+            <p className="font-mono text-label text-lime">— Editar categoría</p>
+            <h2 className="font-display text-display-sm text-white mt-2">Actualiza los datos de la categoría</h2>
+          </div>
+          <div className="grid gap-4 lg:grid-cols-4">
+            <label className="block">
+              <span className="font-body text-sm text-muted">Nombre</span>
+              <input
+                value={editedName}
+                onChange={(event) => setEditedName(event.target.value)}
+                className="mt-2 w-full rounded border border-border bg-bg px-3 py-2 text-white"
+              />
+            </label>
+            <label className="block">
+              <span className="font-body text-sm text-muted">Slug</span>
+              <input
+                value={editedSlug}
+                onChange={(event) => setEditedSlug(event.target.value)}
+                className="mt-2 w-full rounded border border-border bg-bg px-3 py-2 text-white"
+              />
+            </label>
+            <label className="block lg:col-span-4">
+              <span className="font-body text-sm text-muted">Descripción</span>
+              <textarea
+                value={editedDescription}
+                onChange={(event) => setEditedDescription(event.target.value)}
+                className="mt-2 w-full min-h-[120px] rounded border border-border bg-bg px-3 py-2 text-white"
+              />
+            </label>
+            <label className="block">
+              <span className="font-body text-sm text-muted">Imagen</span>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleEditImageFileChange}
+                className="mt-2 w-full rounded border border-border bg-bg px-3 py-2 text-white file:cursor-pointer file:rounded-full file:border-none file:bg-bg-2 file:px-3 file:py-2"
+              />
+              <input
+                value={editImageUrl}
+                onChange={(event) => {
+                  setEditImageUrl(event.target.value)
+                  setEditImageFile(null)
+                  setEditImagePreview(null)
+                }}
+                placeholder="O pega una URL"
+                className="mt-3 w-full rounded border border-border bg-bg px-3 py-2 text-white"
+              />
+              {(editImagePreview || editImageUrl) && (
+                <div className="mt-2 overflow-hidden rounded-2xl border border-border bg-bg">
+                  <img
+                    src={editImagePreview || editImageUrl}
+                    alt="Vista previa de categoría"
+                    className="h-20 w-full object-cover"
+                  />
+                </div>
+              )}
+            </label>
+            <label className="block">
+              <span className="font-body text-sm text-muted">Categoría padre</span>
+              <select
+                value={editedParentId ?? ''}
+                onChange={(event) => setEditedParentId(event.target.value || null)}
+                className="mt-2 w-full rounded border border-border bg-bg px-3 py-2 text-white"
+              >
+                <option value="">Sin padre</option>
+                {data
+                  ?.filter((category) => category.id !== editingCategoryId)
+                  .map((category) => (
+                    <option key={category.id} value={category.id}>
+                      {category.name}
+                    </option>
+                  ))}
+              </select>
+            </label>
+            <div className="lg:col-span-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <button
+                type="button"
+                onClick={handleSaveCategory}
+                disabled={isBusy || savingCategoryId === editingCategoryId}
+                className="btn-primary rounded-full px-6 py-3"
+              >
+                {savingCategoryId === editingCategoryId ? 'Guardando...' : 'Guardar cambios'}
+              </button>
+              <button
+                type="button"
+                onClick={resetEditCategory}
+                className="rounded-full border border-border px-6 py-3 text-muted hover:text-white"
+              >
+                Cancelar edición
+              </button>
+            </div>
+          </div>
+        </section>
+      )}
 
       <section className="rounded-3xl border border-border bg-bg-3 p-6">
         <div className="mb-6">

@@ -66,6 +66,7 @@ export default function ProductsAdmin() {
   const [form, setForm] = useState<ProductFormState>(initialFormState)
   const [imageFiles, setImageFiles] = useState<File[]>([])
   const [isCreating, setIsCreating] = useState(false)
+  const [editingProductId, setEditingProductId] = useState<string | null>(null)
   const [isSaving, setIsSaving] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
 
@@ -185,6 +186,107 @@ export default function ProductsAdmin() {
     }))
   }
 
+  const handleEditProduct = (product: ProductWithRelations) => {
+    setEditingProductId(product.id)
+    setIsCreating(false)
+    setForm(getProductFormState(product))
+    setImageFiles([])
+    setSubmitError(null)
+  }
+
+  const handleDeleteProduct = async (product: ProductWithRelations) => {
+    const confirmed = window.confirm(`¿Eliminar el producto ${product.name}? Esta acción no se puede deshacer.`)
+    if (!confirmed) return
+    await deleteProduct.mutateAsync(product.id)
+  }
+
+  const resetForm = () => {
+    setForm(initialFormState)
+    setImageFiles([])
+    setEditingProductId(null)
+    setIsCreating(false)
+    setSubmitError(null)
+  }
+
+  const getProductFormState = (product: ProductWithRelations): ProductFormState => ({
+    name: product.name,
+    slug: product.slug ?? '',
+    description: product.description ?? '',
+    imageUrls: (product.images ?? []).filter(Boolean).join(', '),
+    base_price: String(product.base_price ?? ''),
+    compare_price: product.compare_price ? String(product.compare_price) : '',
+    brand_id: product.brand?.id ?? '',
+    category_id: product.category?.id ?? '',
+    sku: product.variants?.[0]?.sku ?? '',
+    size: product.variants?.[0]?.size ?? '',
+    color: product.variants?.[0]?.color ?? '',
+    color_hex: product.variants?.[0]?.color_hex ?? '',
+    stock: String(product.variants?.[0]?.stock ?? 0),
+    is_active: product.is_active,
+    is_featured: product.is_featured,
+    is_drop: product.is_drop,
+    tags: (product.tags ?? []).join(', '),
+  })
+
+  const updateProduct = useMutation({
+    mutationFn: async (payload: { id: string } & Record<string, unknown>) => {
+      const { id, ...rest } = payload
+      const { data, error } = await ((supabase as any).from('products').update(rest).eq('id', id).select().single())
+      if (error) throw error
+      return data as Product
+    },
+    onSuccess: async (_, variables) => {
+      const variantStock = Number(form.stock || '0')
+      const variantPayload = {
+        sku: form.sku || null,
+        size: form.size || 'Único',
+        color: form.color || null,
+        color_hex: form.color_hex || null,
+        stock: variantStock,
+        price: Number(form.base_price) || 0,
+        is_active: true,
+        product_id: variables.id,
+      }
+
+      const existingVariant = await supabase
+        .from('product_variants')
+        .select('id')
+        .eq('product_id', variables.id)
+        .limit(1)
+        .single()
+
+      if (!existingVariant.error && existingVariant.data) {
+        await supabase
+          .from('product_variants')
+          .update(variantPayload)
+          .eq('id', existingVariant.data.id)
+      } else if (!existingVariant.error && variantStock > 0) {
+        await supabase.from('product_variants').insert([variantPayload])
+      }
+
+      queryClient.invalidateQueries({ queryKey: ['admin', 'products'] })
+      resetForm()
+    },
+    onError: (error) => {
+      setSubmitError(getErrorMessage(error))
+    },
+  })
+
+  const deleteProduct = useMutation({
+    mutationFn: async (id: string) => {
+      const { data, error } = await ((supabase as any).from('products').delete().eq('id', id).select().single())
+      if (error) throw error
+      return data as Product
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'products'] })
+      if (editingProductId) resetForm()
+    },
+    onError: (error) => {
+      setSubmitError(getErrorMessage(error))
+    },
+  })
+
   const handleSubmit = async (event: { preventDefault: () => void }) => {
     event.preventDefault()
     setSubmitError(null)
@@ -201,19 +303,6 @@ export default function ProductsAdmin() {
             .filter(Boolean)
         : []
 
-      const variantStock = Number(form.stock || '0')
-      const variantPayload = variantStock > 0
-        ? [{
-            sku: form.sku || null,
-            size: form.size || 'Único',
-            color: form.color || null,
-            color_hex: form.color_hex || null,
-            stock: variantStock,
-            price: Number(form.base_price) || 0,
-            is_active: true,
-          }]
-        : []
-
       const payload = {
         name: form.name,
         slug: form.slug || createSlug(form.name),
@@ -228,10 +317,24 @@ export default function ProductsAdmin() {
         is_featured: form.is_featured,
         is_drop: form.is_drop,
         metadata: {},
-        product_variants: variantPayload,
+        product_variants: Number(form.stock || '0') > 0 ? [{
+          sku: form.sku || null,
+          size: form.size || 'Único',
+          color: form.color || null,
+          color_hex: form.color_hex || null,
+          stock: Number(form.stock || '0'),
+          price: Number(form.base_price) || 0,
+          is_active: true,
+        }] : [],
       }
 
-      await createProduct.mutateAsync(payload)
+      if (editingProductId) {
+        const updatePayload = { ...payload }
+        delete (updatePayload as any).product_variants
+        await updateProduct.mutateAsync({ id: editingProductId, ...updatePayload })
+      } else {
+        await createProduct.mutateAsync(payload)
+      }
     } catch (error) {
       setSubmitError(getErrorMessage(error))
     } finally {
@@ -257,6 +360,7 @@ export default function ProductsAdmin() {
               <th className="px-4 py-3">Stock</th>
               <th className="px-4 py-3">Activo</th>
               <th className="px-4 py-3">Destacado</th>
+              <th className="px-4 py-3">Acciones</th>
             </tr>
           </thead>
           <tbody>
@@ -276,6 +380,22 @@ export default function ProductsAdmin() {
                   <td className="px-4 py-4">{totalStock}</td>
                   <td className="px-4 py-4">{product.is_active ? 'Sí' : 'No'}</td>
                   <td className="px-4 py-4">{product.is_featured ? 'Sí' : 'No'}</td>
+                  <td className="px-4 py-4 flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleEditProduct(product)}
+                      className="rounded-full border border-border bg-bg px-3 py-1 text-xs text-white transition hover:border-lime hover:text-lime"
+                    >
+                      Editar
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteProduct(product)}
+                      className="rounded-full border border-border bg-bg px-3 py-1 text-xs text-red transition hover:bg-red/10"
+                    >
+                      Eliminar
+                    </button>
+                  </td>
                 </tr>
               )
             })}
@@ -296,23 +416,26 @@ export default function ProductsAdmin() {
         </div>
         <button
           type="button"
-          onClick={() => setIsCreating((prev) => !prev)}
+          onClick={() => {
+            resetForm()
+            setIsCreating(true)
+          }}
           className="inline-flex items-center gap-2 rounded-full border border-lime bg-lime/10 px-4 py-2 text-sm font-medium text-lime transition hover:bg-lime/20"
         >
           + Añadir producto
         </button>
       </div>
 
-      {isCreating && (
+      {(isCreating || editingProductId) && (
         <section className="mb-8 rounded-3xl border border-border bg-bg-3 p-6">
           <div className="mb-6 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <p className="font-mono text-label text-lime">— Nuevo producto</p>
-              <h2 className="font-display text-display-sm text-white mt-2">Agrega un producto nuevo a la tienda</h2>
+              <p className="font-mono text-label text-lime">— {editingProductId ? 'Editar producto' : 'Nuevo producto'}</p>
+              <h2 className="font-display text-display-sm text-white mt-2">{editingProductId ? 'Actualiza los datos del producto' : 'Agrega un producto nuevo a la tienda'}</h2>
             </div>
             <button
               type="button"
-              onClick={() => setIsCreating(false)}
+              onClick={resetForm}
               className="font-body text-sm text-muted hover:text-white"
             >
               Cancelar
@@ -524,17 +647,17 @@ export default function ProductsAdmin() {
             <div className="lg:col-span-2 flex items-center gap-3">
               <button
                 type="submit"
-                disabled={createProduct.isPending || isSaving}
+                disabled={(editingProductId ? updateProduct.isPending : createProduct.isPending) || isSaving}
                 className="btn-primary inline-flex items-center justify-center rounded-full px-6 py-3"
               >
-                {createProduct.isPending || isSaving ? 'Guardando...' : 'Guardar producto'}
+                {isSaving || ((editingProductId ? updateProduct.isPending : createProduct.isPending)) ? 'Guardando...' : editingProductId ? 'Guardar cambios' : 'Guardar producto'}
               </button>
-              {createProduct.isSuccess && (
-                <p className="font-body text-sm text-lime">Producto creado correctamente.</p>
+              {(editingProductId ? updateProduct.isSuccess : createProduct.isSuccess) && (
+                <p className="font-body text-sm text-lime">{editingProductId ? 'Producto actualizado correctamente.' : 'Producto creado correctamente.'}</p>
               )}
-              {(createProduct.isError || submitError) && (
+              {(editingProductId ? updateProduct.isError : createProduct.isError || Boolean(submitError)) && (
                 <p className="font-body text-sm text-red">
-                  Error: {submitError ?? (createProduct.error instanceof Error ? createProduct.error.message : 'No se pudo crear')}
+                  Error: {submitError ?? ((editingProductId ? updateProduct.error : createProduct.error) instanceof Error ? (editingProductId ? updateProduct.error : createProduct.error)?.message : 'No se pudo guardar')}
                 </p>
               )}
             </div>
