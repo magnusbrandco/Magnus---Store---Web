@@ -14,6 +14,19 @@ function createSlug(value: string) {
     .replaceAll(/[^a-z0-9-]/g, '')
 }
 
+function normalizeImageUrl(url: string) {
+  const trimmed = url.trim()
+  if (!trimmed) return null
+
+  const driveMatch = trimmed.match(/(?:drive\.google\.com\/(?:file\/d\/([a-zA-Z0-9_-]+)|open\?id=([a-zA-Z0-9_-]+))|docs\.google\.com\/uc\?id=([a-zA-Z0-9_-]+)|drive\.google\.com\/thumbnail\?id=([a-zA-Z0-9_-]+))(?:[&?].*)?/) 
+  if (driveMatch) {
+    const driveId = driveMatch.slice(1).find(Boolean)
+    return driveId ? `https://drive.google.com/uc?export=view&id=${driveId}` : trimmed
+  }
+
+  return trimmed
+}
+
 export default function CategoriesAdmin() {
   useSEO({ title: 'Admin Categorías | Magnus' })
 
@@ -87,7 +100,7 @@ export default function CategoriesAdmin() {
       if (existingSlug.error) throw existingSlug.error
       if (existingSlug.data?.length) throw new Error('Ya existe una categoría con ese slug.')
 
-      const imagePath = imageFile ? await uploadImageToStorage(imageFile, 'categories/images') : imageUrl || null
+      const imagePath = imageFile ? await uploadImageToStorage(imageFile, 'categories/images') : normalizeImageUrl(imageUrl)
 
       const payload = {
         name: trimmedName,

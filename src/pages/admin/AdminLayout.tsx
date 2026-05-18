@@ -43,8 +43,18 @@ export function AdminLayout() {
   return (
     <div className="pt-24 pb-16">
       <div className="container-wide">
-        <div className="flex gap-8">
-          <aside className="w-56 shrink-0 space-y-1">
+        <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <button
+            type="button"
+            onClick={() => navigate(-1)}
+            className="inline-flex items-center rounded-full border border-border bg-bg px-4 py-2 text-sm text-white transition hover:border-lime hover:text-lime"
+          >
+            ← Volver
+          </button>
+          <p className="font-body text-sm text-muted">Panel de administración</p>
+        </div>
+        <div className="flex flex-col gap-8 lg:flex-row">
+          <aside className="w-full lg:w-56 shrink-0 space-y-1">
             {adminLinks.map((link) => (
               <Link
                 key={link.to}

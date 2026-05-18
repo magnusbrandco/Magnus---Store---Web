@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useProducts } from '@/hooks/useProducts'
 import { ProductGrid } from '@/components/products/ProductGrid'
@@ -12,6 +13,7 @@ export default function Shop() {
   })
 
   const [searchParams] = useSearchParams()
+  const [showFilters, setShowFilters] = useState(false)
 
   const filters: ProductFiltersType = {
     category: searchParams.get('categoria') || undefined,
@@ -33,8 +35,18 @@ export default function Shop() {
           <h1 className="font-display text-display-lg text-white mt-2">Productos</h1>
         </div>
 
-        <div className="flex gap-8">
-          <div className="hidden lg:block w-64 shrink-0">
+        <div className="mb-4 lg:hidden">
+          <button
+            type="button"
+            onClick={() => setShowFilters((prev) => !prev)}
+            className="btn-outline"
+          >
+            {showFilters ? 'Ocultar filtros' : 'Mostrar filtros'}
+          </button>
+        </div>
+
+        <div className="flex flex-col gap-8 lg:flex-row">
+          <div className={`w-full lg:w-64 shrink-0 ${showFilters ? 'block' : 'hidden'} lg:block`}>
             <ProductFilters />
           </div>
           <div className="flex-1">

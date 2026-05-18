@@ -3,11 +3,12 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useSEO } from '@/hooks/useSEO'
 import { SUPABASE_STORAGE_BUCKET } from '@/config/constants'
 import { supabase } from '@/lib/supabase'
-import type { Product, Brand, Category } from '@/types/database'
+import type { Product, ProductVariant, Brand, Category } from '@/types/database'
 
 interface ProductWithRelations extends Product {
   brand: Brand | null
   category: Category | null
+  variants?: ProductVariant[]
 }
 
 type ProductFormState = {
@@ -19,6 +20,11 @@ type ProductFormState = {
   compare_price: string
   brand_id: string
   category_id: string
+  sku: string
+  size: string
+  color: string
+  color_hex: string
+  stock: string
   is_active: boolean
   is_featured: boolean
   is_drop: boolean
@@ -34,6 +40,11 @@ const initialFormState: ProductFormState = {
   compare_price: '',
   brand_id: '',
   category_id: '',
+  sku: '',
+  size: '',
+  color: '',
+  color_hex: '',
+  stock: '',
   is_active: true,
   is_featured: false,
   is_drop: false,
@@ -74,7 +85,7 @@ export default function ProductsAdmin() {
     queryFn: async () => {
       const { data, error } = await (supabase
         .from('products')
-        .select(`*, brand:brands(id, name), category:categories(id, name)`)
+        .select(`*, brand:brands(id, name), category:categories(id, name), variants:product_variants(id, stock)`)
         .order('created_at', { ascending: false }) as any)
       if (error) throw error
       return data ?? []
@@ -131,6 +142,19 @@ export default function ProductsAdmin() {
     }
   }
 
+  const normalizeImageUrl = (url: string) => {
+    const trimmed = url.trim()
+    if (!trimmed) return null
+
+    const driveMatch = trimmed.match(/(?:drive\.google\.com\/(?:file\/d\/([a-zA-Z0-9_-]+)|open\?id=([a-zA-Z0-9_-]+))|docs\.google\.com\/uc\?id=([a-zA-Z0-9_-]+)|drive\.google\.com\/thumbnail\?id=([a-zA-Z0-9_-]+))(?:[&?].*)?/) 
+    if (driveMatch) {
+      const driveId = driveMatch.slice(1).find(Boolean)
+      return driveId ? `https://drive.google.com/uc?export=view&id=${driveId}` : trimmed
+    }
+
+    return trimmed
+  }
+
   const handleImageUrlsChange = (value: string) => {
     setImageFiles([])
     setForm((prev) => ({ ...prev, imageUrls: value }))
@@ -171,7 +195,23 @@ export default function ProductsAdmin() {
         ? await Promise.all(imageFiles.map((file) => uploadImageToStorage(file, 'products')))
         : []
       const fallbackImageUrls = form.imageUrls
-        ? form.imageUrls.split(',').map((url) => url.trim()).filter(Boolean)
+        ? form.imageUrls
+            .split(',')
+            .map((url) => normalizeImageUrl(url))
+            .filter(Boolean)
+        : []
+
+      const variantStock = Number(form.stock || '0')
+      const variantPayload = variantStock > 0
+        ? [{
+            sku: form.sku || null,
+            size: form.size || 'Único',
+            color: form.color || null,
+            color_hex: form.color_hex || null,
+            stock: variantStock,
+            price: Number(form.base_price) || 0,
+            is_active: true,
+          }]
         : []
 
       const payload = {
@@ -188,6 +228,7 @@ export default function ProductsAdmin() {
         is_featured: form.is_featured,
         is_drop: form.is_drop,
         metadata: {},
+        product_variants: variantPayload,
       }
 
       await createProduct.mutateAsync(payload)
@@ -213,26 +254,31 @@ export default function ProductsAdmin() {
               <th className="px-4 py-3">Producto</th>
               <th className="px-4 py-3">Marca / Categoría</th>
               <th className="px-4 py-3">Precio</th>
+              <th className="px-4 py-3">Stock</th>
               <th className="px-4 py-3">Activo</th>
               <th className="px-4 py-3">Destacado</th>
             </tr>
           </thead>
           <tbody>
-            {data.map((product) => (
-              <tr key={product.id} className="border-b border-border hover:bg-bg">
-                <td className="px-4 py-4">
-                  <p className="font-medium text-white">{product.name}</p>
-                  <p className="font-body text-xs text-muted">{product.slug}</p>
-                </td>
-                <td className="px-4 py-4">
-                  <p>{product.brand?.name ?? 'Sin marca'}</p>
-                  <p className="font-body text-xs text-muted">{product.category?.name ?? 'Sin categoría'}</p>
-                </td>
-                <td className="px-4 py-4">${product.base_price.toFixed(0)}</td>
-                <td className="px-4 py-4">{product.is_active ? 'Sí' : 'No'}</td>
-                <td className="px-4 py-4">{product.is_featured ? 'Sí' : 'No'}</td>
-              </tr>
-            ))}
+            {data.map((product) => {
+              const totalStock = product.variants?.reduce((sum, variant) => sum + (variant.stock ?? 0), 0) || 0
+              return (
+                <tr key={product.id} className="border-b border-border hover:bg-bg">
+                  <td className="px-4 py-4">
+                    <p className="font-medium text-white">{product.name}</p>
+                    <p className="font-body text-xs text-muted">{product.slug}</p>
+                  </td>
+                  <td className="px-4 py-4">
+                    <p>{product.brand?.name ?? 'Sin marca'}</p>
+                    <p className="font-body text-xs text-muted">{product.category?.name ?? 'Sin categoría'}</p>
+                  </td>
+                  <td className="px-4 py-4">${product.base_price.toFixed(0)}</td>
+                  <td className="px-4 py-4">{totalStock}</td>
+                  <td className="px-4 py-4">{product.is_active ? 'Sí' : 'No'}</td>
+                  <td className="px-4 py-4">{product.is_featured ? 'Sí' : 'No'}</td>
+                </tr>
+              )
+            })}
           </tbody>
         </table>
       </div>
@@ -332,10 +378,21 @@ export default function ProductsAdmin() {
                 className="mt-2 w-full rounded border border-border bg-bg px-3 py-2 text-white"
               />
               <p className="mt-2 text-xs text-muted">
-                Selecciona hasta varias imágenes para el producto. Si quieres usar URLs en lugar de subir archivos, puedes pegarlas separadas por comas.
+                Selecciona varias imágenes para el producto. Si prefieres usar URLs, pégalas separadas por comas.
               </p>
               {imageFiles.length > 0 && (
-                <p className="mt-2 text-xs text-muted">Archivos seleccionados: {imageFiles.length}</p>
+                <div className="mt-3 grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  {imageFiles.map((file) => (
+                    <div key={file.name} className="overflow-hidden rounded-2xl border border-border bg-bg">
+                      <img
+                        src={URL.createObjectURL(file)}
+                        alt={file.name}
+                        className="h-24 w-full object-cover"
+                      />
+                      <p className="px-2 py-1 text-xs text-muted truncate">{file.name}</p>
+                    </div>
+                  ))}
+                </div>
               )}
             </label>
             <label className="block">
@@ -343,6 +400,52 @@ export default function ProductsAdmin() {
               <input
                 value={form.imageUrls}
                 onChange={(event) => handleImageUrlsChange(event.target.value)}
+                className="mt-2 w-full rounded border border-border bg-bg px-3 py-2 text-white"
+              />
+            </label>
+            <label className="block">
+              <span className="font-body text-sm text-muted">SKU</span>
+              <input
+                value={form.sku}
+                onChange={(event) => handleInput('sku', event.target.value)}
+                className="mt-2 w-full rounded border border-border bg-bg px-3 py-2 text-white"
+              />
+            </label>
+            <label className="block">
+              <span className="font-body text-sm text-muted">Tamaño</span>
+              <input
+                value={form.size}
+                onChange={(event) => handleInput('size', event.target.value)}
+                placeholder="Ej: Único, S, M"
+                className="mt-2 w-full rounded border border-border bg-bg px-3 py-2 text-white"
+              />
+            </label>
+            <label className="block">
+              <span className="font-body text-sm text-muted">Color</span>
+              <input
+                value={form.color}
+                onChange={(event) => handleInput('color', event.target.value)}
+                placeholder="Ej: blanco"
+                className="mt-2 w-full rounded border border-border bg-bg px-3 py-2 text-white"
+              />
+            </label>
+            <label className="block">
+              <span className="font-body text-sm text-muted">Hex de color</span>
+              <input
+                value={form.color_hex}
+                onChange={(event) => handleInput('color_hex', event.target.value)}
+                placeholder="#ffffff"
+                className="mt-2 w-full rounded border border-border bg-bg px-3 py-2 text-white"
+              />
+            </label>
+            <label className="block">
+              <span className="font-body text-sm text-muted">Stock inicial</span>
+              <input
+                type="number"
+                value={form.stock}
+                onChange={(event) => handleInput('stock', event.target.value)}
+                min="0"
+                step="1"
                 className="mt-2 w-full rounded border border-border bg-bg px-3 py-2 text-white"
               />
             </label>

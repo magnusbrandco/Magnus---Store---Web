@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
+import { useEffect, useState } from 'react'
 import { Badge } from '@/components/ui/Badge'
 import { formatCOP } from '@/lib/utils'
 import type { ProductCardData } from '@/types'
@@ -9,6 +10,17 @@ interface ProductCardProps {
 }
 
 export function ProductCard({ product }: ProductCardProps) {
+  const [activeImage, setActiveImage] = useState(0)
+  const images = product.images?.filter(Boolean) ?? []
+
+  useEffect(() => {
+    if (!images.length) return
+    const timer = window.setInterval(() => {
+      setActiveImage((current) => (current + 1) % images.length)
+    }, 3000)
+    return () => window.clearInterval(timer)
+  }, [images.length])
+
   const lowestPrice = product.variants?.length
     ? Math.min(...product.variants.map((v: any) => v.price || product.base_price))
     : product.base_price
@@ -27,10 +39,13 @@ export function ProductCard({ product }: ProductCardProps) {
 
   return (
     <Link to={`/producto/${product.slug}`} className="group block">
-      <div className="relative aspect-[4/5] bg-bg-3 overflow-hidden mb-3">
-        {product.images?.[0] && (
+      <div
+        className="relative aspect-[4/5] bg-bg-3 overflow-hidden mb-3"
+        onMouseEnter={() => images.length > 1 && setActiveImage((current) => (current + 1) % images.length)}
+      >
+        {images.length > 0 && (
           <img
-            src={product.images[0]}
+            src={images[activeImage % images.length]}
             alt={product.name}
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
             loading="lazy"

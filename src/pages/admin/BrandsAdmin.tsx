@@ -14,6 +14,19 @@ function createSlug(value: string) {
     .replaceAll(/[^a-z0-9-]/g, '')
 }
 
+function normalizeImageUrl(url: string) {
+  const trimmed = url.trim()
+  if (!trimmed) return null
+
+  const driveMatch = trimmed.match(/(?:drive\.google\.com\/(?:file\/d\/([a-zA-Z0-9_-]+)|open\?id=([a-zA-Z0-9_-]+))|docs\.google\.com\/uc\?id=([a-zA-Z0-9_-]+)|drive\.google\.com\/thumbnail\?id=([a-zA-Z0-9_-]+))(?:[&?].*)?/) 
+  if (driveMatch) {
+    const driveId = driveMatch.slice(1).find(Boolean)
+    return driveId ? `https://drive.google.com/uc?export=view&id=${driveId}` : trimmed
+  }
+
+  return trimmed
+}
+
 export default function BrandsAdmin() {
   useSEO({ title: 'Admin Marcas | Magnus' })
 
@@ -96,8 +109,8 @@ export default function BrandsAdmin() {
       if (existingSlug.error) throw existingSlug.error
       if (existingSlug.data?.length) throw new Error('Ya existe una marca con ese slug.')
 
-      const logoPath = logoFile ? await uploadImageToStorage(logoFile, 'brands/logos') : logoUrl || null
-      const coverPath = coverFile ? await uploadImageToStorage(coverFile, 'brands/covers') : coverUrl || null
+      const logoPath = logoFile ? await uploadImageToStorage(logoFile, 'brands/logos') : normalizeImageUrl(logoUrl)
+      const coverPath = coverFile ? await uploadImageToStorage(coverFile, 'brands/covers') : normalizeImageUrl(coverUrl)
 
       const payload = {
         name: trimmedName,
