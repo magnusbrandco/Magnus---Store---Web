@@ -57,6 +57,18 @@ export default function ProductsAdmin() {
   const [isCreating, setIsCreating] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
+
+  const getErrorMessage = (error: unknown): string => {
+    if (!error) return 'Error desconocido.'
+    if (error instanceof Error) return error.message
+    if (typeof error === 'object' && error !== null) {
+      if ('message' in error && typeof (error as any).message === 'string') return (error as any).message
+      if ('error' in error && typeof (error as any).error === 'string') return (error as any).error
+      if ('msg' in error && typeof (error as any).msg === 'string') return (error as any).msg
+    }
+    return String(error)
+  }
+
   const { data, isLoading, error } = useQuery<ProductWithRelations[]>({
     queryKey: ['admin', 'products'],
     queryFn: async () => {
@@ -180,7 +192,7 @@ export default function ProductsAdmin() {
 
       await createProduct.mutateAsync(payload)
     } catch (error) {
-      setSubmitError(error instanceof Error ? error.message : 'Error creando producto.')
+      setSubmitError(getErrorMessage(error))
     } finally {
       setIsSaving(false)
     }
