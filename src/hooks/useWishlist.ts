@@ -16,7 +16,8 @@ export function useWishlist() {
         .select('product_id, created_at')
         .eq('user_id', user.id)
       if (error) throw error
-      return (data ?? []).map((w: WishlistItem) => w.product_id)
+      const rows = (data ?? []) as unknown as WishlistItem[]
+      return rows.map((w) => w.product_id)
     },
     enabled: !!user,
   })

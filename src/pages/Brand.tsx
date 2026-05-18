@@ -26,7 +26,7 @@ export default function BrandPage() {
         .select('*, brand:brands(id, name, slug), variants:product_variants(id, size, color, color_hex, stock, price)')
         .eq('is_active', true)
         .eq('brand.slug', slug!)
-      return (data ?? []) as ProductWithRelations[]
+      return (data ?? []) as unknown as ProductWithRelations[]
     },
     enabled: !!slug,
   })

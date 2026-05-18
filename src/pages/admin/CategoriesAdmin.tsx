@@ -1,7 +1,9 @@
 import { useState } from 'react'
+import { z } from 'zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useSEO } from '@/hooks/useSEO'
-import { Modal, Toast } from '@/components/ui'
+import { Modal } from '@/components/ui'
+import { notifications } from '@/lib/notifications'
 import { supabase } from '@/lib/supabase'
 import type { Category } from '@/types/database'
 
@@ -12,6 +14,13 @@ function createSlug(value: string) {
     .replaceAll(/\s+/g, '-')
     .replaceAll(/[^a-z0-9-]/g, '')
 }
+
+const categorySchema = z.object({
+  name: z.string().min(3, 'El nombre debe tener al menos 3 caracteres'),
+  slug: z.string().min(3, 'El slug debe tener al menos 3 caracteres').regex(/^[a-z0-9-]+$/, 'El slug solo puede contener letras minúsculas, números y guiones'),
+  imageUrl: z.string().url('La URL de la imagen no es válida').optional().or(z.literal('')),
+  parentId: z.string().optional().or(z.literal('')),
+})
 
 export default function CategoriesAdmin() {
   useSEO({ title: 'Admin Categorías | Magnus' })
@@ -26,9 +35,6 @@ export default function CategoriesAdmin() {
   const [editedSlug, setEditedSlug] = useState('')
   const [editedParentId, setEditedParentId] = useState<string | null>(null)
 
-  const [toastMessage, setToastMessage] = useState('')
-  const [toastType, setToastType] = useState<'success' | 'error'>('success')
-  const [toastVisible, setToastVisible] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<Category | null>(null)
   const [savingCategoryId, setSavingCategoryId] = useState<string | null>(null)
   const [deletingCategoryId, setDeletingCategoryId] = useState<string | null>(null)
@@ -41,12 +47,6 @@ export default function CategoriesAdmin() {
       return data ?? []
     },
   })
-
-  const showToast = (message: string, type: 'success' | 'error') => {
-    setToastMessage(message)
-    setToastType(type)
-    setToastVisible(true)
-  }
 
   const createCategory = useMutation({
     mutationFn: async () => {
@@ -82,10 +82,10 @@ export default function CategoriesAdmin() {
       setName('')
       setImageUrl('')
       setParentId(null)
-      showToast('Categoría creada correctamente.', 'success')
+      notifications.success('Categoría creada', 'Categoría creada correctamente.')
     },
     onError: (error) => {
-      showToast(error instanceof Error ? error.message : 'No se pudo crear la categoría.', 'error')
+      notifications.error('Error al crear categoría', error instanceof Error ? error.message : 'No se pudo crear la categoría.')
     },
   })
 
@@ -126,10 +126,10 @@ export default function CategoriesAdmin() {
         old ? old.map((category) => (category.id === data.id ? data : category)).sort((a, b) => a.name.localeCompare(b.name)) : [data]
       )
       resetEditCategory()
-      showToast('Categoría actualizada correctamente.', 'success')
+      notifications.success('Categoría actualizada', 'Categoría actualizada correctamente.')
     },
     onError: (error) => {
-      showToast(error instanceof Error ? error.message : 'No se pudo actualizar la categoría.', 'error')
+      notifications.error('Error al actualizar categoría', error instanceof Error ? error.message : 'No se pudo actualizar la categoría.')
     },
   })
 
@@ -144,10 +144,10 @@ export default function CategoriesAdmin() {
         old ? old.filter((category) => category.id !== id) : []
       )
       if (editingCategoryId) resetEditCategory()
-      showToast('Categoría eliminada correctamente.', 'success')
+      notifications.success('Categoría eliminada', 'Categoría eliminada correctamente.')
     },
     onError: (error) => {
-      showToast(error instanceof Error ? error.message : 'No se pudo eliminar la categoría.', 'error')
+      notifications.error('Error al eliminar categoría', error instanceof Error ? error.message : 'No se pudo eliminar la categoría.')
     },
   })
 
@@ -158,7 +158,19 @@ export default function CategoriesAdmin() {
 
   const handleSubmit = async (event: { preventDefault: () => void }) => {
     event.preventDefault()
-    if (!name.trim()) return
+
+    const parsed = categorySchema.safeParse({
+      name: name.trim(),
+      slug: createSlug(name),
+      imageUrl,
+      parentId: parentId || '',
+    })
+
+    if (!parsed.success) {
+      notifications.error('Error de validación', parsed.error.issues[0]?.message || 'Revisa los datos del formulario.')
+      return
+    }
+
     await createCategory.mutateAsync()
   }
 
@@ -344,12 +356,6 @@ export default function CategoriesAdmin() {
 
   return (
     <div>
-      <Toast
-        message={toastMessage}
-        type={toastType}
-        isVisible={toastVisible}
-        onClose={() => setToastVisible(false)}
-      />
       <Modal
         isOpen={Boolean(deleteTarget)}
         onClose={() => setDeleteTarget(null)}

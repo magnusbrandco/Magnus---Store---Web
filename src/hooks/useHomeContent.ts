@@ -22,7 +22,7 @@ export function useUpdateHomepageSettings() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async (settings: HomepageSetting) => {
+    mutationFn: async (settings: Partial<HomepageSetting> & { id: string }) => {
       const { data, error } = await supabase
         .from('homepage_settings')
         .update(settings)
@@ -79,7 +79,7 @@ export function useHomeCategories() {
         .order('sort_order')
 
       if (error) throw error
-      return ((data ?? []) as HomeCategory[]).map((category) => ({
+      return ((data ?? []) as unknown as HomeCategory[]).map((category) => ({
         ...category,
         count: category.products?.length ?? 0,
       }))
@@ -98,7 +98,7 @@ export function useHomeBrands() {
         .order('sort_order')
 
       if (error) throw error
-      return (data ?? []) as HomeBrand[]
+      return (data ?? []) as unknown as HomeBrand[]
     },
   })
 }

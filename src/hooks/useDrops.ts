@@ -41,7 +41,7 @@ export function useSubscribeToDrop() {
     mutationFn: async ({ dropId, email }: { dropId: string; email: string }) => {
       const { data, error } = await supabase
         .from('drop_subscribers')
-        .insert({ drop_id: dropId, email })
+        .insert({ drop_id: dropId, email, user_id: null })
         .select()
         .single()
       if (error) throw error

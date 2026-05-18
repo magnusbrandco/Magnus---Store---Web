@@ -33,7 +33,7 @@ export function useProducts(filters: ProductFilters = {}) {
 
       const { data, error } = await query
       if (error) throw error
-      return (data ?? []) as ProductWithRelations[]
+      return (data ?? []) as unknown as ProductWithRelations[]
     },
     getNextPageParam: (lastPage, allPages) =>
       lastPage.length === 20 ? allPages.length : undefined,
@@ -45,20 +45,22 @@ export function useProduct(slug: string) {
   return useQuery({
     queryKey: ['product', slug],
     queryFn: async () => {
-      const { data, error } = await (supabase
-        .from('products')
-        .select(`
-          *,
-          brand:brands(*),
-          category:categories(*),
-          variants:product_variants(*),
-          reviews(*, profile:profiles(full_name, avatar_url))
-        `)
-        .eq('slug', slug)
-        .eq('is_active', true)
-        .single()
+      const { data, error } = await (
+        supabase
+          .from('products')
+          .select(`
+            *,
+            brand:brands(*),
+            category:categories(*),
+            variants:product_variants(*),
+            reviews(*, profile:profiles(full_name, avatar_url))
+          `)
+          .eq('slug', slug)
+          .eq('is_active', true)
+          .single()
+      )
       if (error) throw error
-      return data as ProductWithRelations
+      return data as unknown as ProductWithRelations
     },
     enabled: !!slug,
   })
@@ -68,19 +70,21 @@ export function useFeaturedProducts() {
   return useQuery({
     queryKey: ['products', 'featured'],
     queryFn: async () => {
-      const { data, error } = await (supabase
-        .from('products')
-        .select(`
-          *,
-          brand:brands(id, name, slug),
-          variants:product_variants(id, size, color, color_hex, stock, price)
-        `)
-        .eq('is_active', true)
-        .eq('is_featured', true)
-        .order('created_at', { ascending: false })
-        .limit(8)
+      const { data, error } = await (
+        supabase
+          .from('products')
+          .select(`
+            *,
+            brand:brands(id, name, slug),
+            variants:product_variants(id, size, color, color_hex, stock, price)
+          `)
+          .eq('is_active', true)
+          .eq('is_featured', true)
+          .order('created_at', { ascending: false })
+          .limit(8)
+      )
       if (error) throw error
-      return (data ?? []) as ProductWithRelations[]
+      return (data ?? []) as unknown as ProductWithRelations[]
     },
   })
 }

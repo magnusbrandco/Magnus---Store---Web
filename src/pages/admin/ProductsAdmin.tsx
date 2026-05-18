@@ -1,6 +1,8 @@
 import { useState } from 'react'
+import { z } from 'zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useSEO } from '@/hooks/useSEO'
+import { notifications } from '@/lib/notifications'
 import { supabase } from '@/lib/supabase'
 import type { Product, Brand, Category } from '@/types/database'
 
@@ -38,6 +40,21 @@ const initialFormState: ProductFormState = {
   is_drop: false,
   tags: '',
 }
+
+const productSchema = z.object({
+  name: z.string().min(3, 'El nombre debe tener al menos 3 caracteres'),
+  slug: z.string().min(3, 'El slug debe tener al menos 3 caracteres').regex(/^[a-z0-9-]+$/, 'El slug solo puede tener letras minúsculas, números y guiones'),
+  description: z.string().optional(),
+  imageUrl: z.string().url('La URL de la imagen no es válida').optional().or(z.literal('')),
+  base_price: z.string().min(1, 'El precio es requerido'),
+  compare_price: z.string().optional(),
+  brand_id: z.string().optional(),
+  category_id: z.string().optional(),
+  is_active: z.boolean(),
+  is_featured: z.boolean(),
+  is_drop: z.boolean(),
+  tags: z.string().optional(),
+})
 
 function createSlug(value: string) {
   return value
@@ -101,10 +118,13 @@ export default function ProductsAdmin() {
       })
       setForm(initialFormState)
       setProductMessage('Producto creado correctamente.')
+      notifications.success('Producto creado', 'El producto se guardó correctamente en el catálogo.')
       setIsCreating(false)
     },
     onError: (error) => {
-      setProductMessage(error instanceof Error ? error.message : 'No se pudo crear el producto.')
+      const message = error instanceof Error ? error.message : 'No se pudo crear el producto.'
+      notifications.error('Error al crear el producto', message)
+      setProductMessage(message)
     },
   })
 
@@ -118,6 +138,23 @@ export default function ProductsAdmin() {
 
   const handleSubmit = async (event: { preventDefault: () => void }) => {
     event.preventDefault()
+    setProductMessage(null)
+
+    const parsed = productSchema.safeParse({
+      ...form,
+      imageUrl: form.imageUrl || '',
+      compare_price: form.compare_price || '',
+      brand_id: form.brand_id || '',
+      category_id: form.category_id || '',
+      tags: form.tags || '',
+    })
+
+    if (!parsed.success) {
+      const validationMessage = parsed.error.issues[0]?.message || 'Revisa los campos del formulario.'
+      notifications.error('Error en el formulario', validationMessage)
+      setProductMessage(validationMessage)
+      return
+    }
 
     const payload = {
       name: form.name,

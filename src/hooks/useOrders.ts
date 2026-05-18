@@ -16,7 +16,7 @@ export function useOrders() {
         .eq('user_id', user.id)
         .order('created_at', { ascending: false })
       if (error) throw error
-      return (data ?? []) as (Order & { items: OrderItem[] })[]
+      return (data ?? []) as unknown as (Order & { items: OrderItem[] })[]
     },
     enabled: !!user,
   })
@@ -34,7 +34,7 @@ export function useOrder(id: string) {
         .eq('id', id)
         .single()
       if (error) throw error
-      return data as Order & { items: OrderItem[] }
+      return data as unknown as Order & { items: OrderItem[] }
     },
     enabled: !!id,
   })

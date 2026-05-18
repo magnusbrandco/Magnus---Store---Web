@@ -1,7 +1,9 @@
 import { useState } from 'react'
+import { z } from 'zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useSEO } from '@/hooks/useSEO'
-import { Modal, Toast } from '@/components/ui'
+import { Modal } from '@/components/ui'
+import { notifications } from '@/lib/notifications'
 import { supabase } from '@/lib/supabase'
 import type { Brand } from '@/types/database'
 
@@ -12,6 +14,13 @@ function createSlug(value: string) {
     .replaceAll(/\s+/g, '-')
     .replaceAll(/[^a-z0-9-]/g, '')
 }
+
+const brandSchema = z.object({
+  name: z.string().min(3, 'El nombre debe tener al menos 3 caracteres'),
+  slug: z.string().min(3, 'El slug debe tener al menos 3 caracteres').regex(/^[a-z0-9-]+$/, 'El slug solo puede contener letras minúsculas, números y guiones'),
+  logoUrl: z.string().url('La URL del logo no es válida').optional().or(z.literal('')),
+  coverUrl: z.string().url('La URL del cover no es válida').optional().or(z.literal('')),
+})
 
 export default function BrandsAdmin() {
   useSEO({ title: 'Admin Marcas | Magnus' })
@@ -25,9 +34,6 @@ export default function BrandsAdmin() {
   const [editedName, setEditedName] = useState('')
   const [editedSlug, setEditedSlug] = useState('')
 
-  const [toastMessage, setToastMessage] = useState('')
-  const [toastType, setToastType] = useState<'success' | 'error'>('success')
-  const [toastVisible, setToastVisible] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<Brand | null>(null)
   const [savingBrandId, setSavingBrandId] = useState<string | null>(null)
   const [deletingBrandId, setDeletingBrandId] = useState<string | null>(null)
@@ -40,12 +46,6 @@ export default function BrandsAdmin() {
       return data ?? []
     },
   })
-
-  const showToast = (message: string, type: 'success' | 'error') => {
-    setToastMessage(message)
-    setToastType(type)
-    setToastVisible(true)
-  }
 
   const createBrand = useMutation({
     mutationFn: async () => {
@@ -82,10 +82,10 @@ export default function BrandsAdmin() {
       setName('')
       setLogoUrl('')
       setCoverUrl('')
-      showToast('Marca creada correctamente.', 'success')
+      notifications.success('Marca creada', 'Marca creada correctamente.')
     },
     onError: (error) => {
-      showToast(error instanceof Error ? error.message : 'No se pudo crear la marca.', 'error')
+      notifications.error('Error al crear marca', error instanceof Error ? error.message : 'No se pudo crear la marca.')
     },
   })
 
@@ -126,10 +126,10 @@ export default function BrandsAdmin() {
         old ? old.map((brand) => (brand.id === data.id ? data : brand)).sort((a, b) => a.name.localeCompare(b.name)) : [data]
       )
       resetEditBrand()
-      showToast('Marca actualizada correctamente.', 'success')
+      notifications.success('Marca actualizada', 'Marca actualizada correctamente.')
     },
     onError: (error) => {
-      showToast(error instanceof Error ? error.message : 'No se pudo actualizar la marca.', 'error')
+      notifications.error('Error al actualizar marca', error instanceof Error ? error.message : 'No se pudo actualizar la marca.')
     },
   })
 
@@ -144,10 +144,10 @@ export default function BrandsAdmin() {
         old ? old.filter((brand) => brand.id !== id) : []
       )
       if (editingBrandId) resetEditBrand()
-      showToast('Marca eliminada correctamente.', 'success')
+      notifications.success('Marca eliminada', 'Marca eliminada correctamente.')
     },
     onError: (error) => {
-      showToast(error instanceof Error ? error.message : 'No se pudo eliminar la marca.', 'error')
+      notifications.error('Error al eliminar marca', error instanceof Error ? error.message : 'No se pudo eliminar la marca.')
     },
   })
 
@@ -158,7 +158,19 @@ export default function BrandsAdmin() {
 
   const handleSubmit = async (event: { preventDefault: () => void }) => {
     event.preventDefault()
-    if (!name.trim()) return
+
+    const parsed = brandSchema.safeParse({
+      name: name.trim(),
+      slug: createSlug(name),
+      logoUrl,
+      coverUrl,
+    })
+
+    if (!parsed.success) {
+      notifications.error('Error de validación', parsed.error.issues[0]?.message || 'Revisa los datos del formulario.')
+      return
+    }
+
     await createBrand.mutateAsync()
   }
 
@@ -319,12 +331,6 @@ export default function BrandsAdmin() {
 
   return (
     <div>
-      <Toast
-        message={toastMessage}
-        type={toastType}
-        isVisible={toastVisible}
-        onClose={() => setToastVisible(false)}
-      />
       <Modal
         isOpen={Boolean(deleteTarget)}
         onClose={() => setDeleteTarget(null)}
