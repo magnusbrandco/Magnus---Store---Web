@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { z } from 'zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useSEO } from '@/hooks/useSEO'
+import { normalizeImageUrl } from '@/lib/image'
 import { Modal } from '@/components/ui'
 import { notifications } from '@/lib/notifications'
 import { supabase } from '@/lib/supabase'
@@ -33,6 +34,7 @@ export default function CategoriesAdmin() {
   const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null)
   const [editedName, setEditedName] = useState('')
   const [editedSlug, setEditedSlug] = useState('')
+  const [editedImageUrl, setEditedImageUrl] = useState('')
   const [editedParentId, setEditedParentId] = useState<string | null>(null)
 
   const [deleteTarget, setDeleteTarget] = useState<Category | null>(null)
@@ -66,7 +68,7 @@ export default function CategoriesAdmin() {
         name: trimmedName,
         slug,
         description: null,
-        image_url: imageUrl || null,
+        image_url: normalizeImageUrl(imageUrl) || null,
         parent_id: parentId || null,
         sort_order: 0,
       }
@@ -90,7 +92,7 @@ export default function CategoriesAdmin() {
   })
 
   const updateCategory = useMutation({
-    mutationFn: async (payload: { id: string; name: string; slug: string; parent_id: string | null }) => {
+    mutationFn: async (payload: { id: string; name: string; slug: string; image_url?: string | null; parent_id: string | null }) => {
       const trimmedName = payload.name.trim()
       if (!trimmedName) throw new Error('El nombre es requerido.')
 
@@ -114,7 +116,12 @@ export default function CategoriesAdmin() {
 
       const { data, error } = await supabase
         .from('categories')
-        .update({ name: trimmedName, slug: payload.slug, parent_id: payload.parent_id || null })
+        .update({
+          name: trimmedName,
+          slug: payload.slug,
+          image_url: normalizeImageUrl(payload.image_url || '' ) || null,
+          parent_id: payload.parent_id || null,
+        })
         .eq('id', payload.id)
         .select()
         .single()
@@ -178,6 +185,7 @@ export default function CategoriesAdmin() {
     setEditingCategoryId(category.id)
     setEditedName(category.name)
     setEditedSlug(category.slug ?? '')
+    setEditedImageUrl(category.image_url ?? '')
     setEditedParentId(category.parent_id)
   }
 
@@ -185,6 +193,7 @@ export default function CategoriesAdmin() {
     setEditingCategoryId(null)
     setEditedName('')
     setEditedSlug('')
+    setEditedImageUrl('')
     setEditedParentId(null)
   }
 
@@ -211,6 +220,7 @@ export default function CategoriesAdmin() {
         id: editingCategoryId,
         name: editedName.trim(),
         slug: createSlug(editedSlug || editedName),
+        image_url: editedImageUrl,
         parent_id: editedParentId || null,
       })
     } finally {

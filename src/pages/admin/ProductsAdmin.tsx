@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { z } from 'zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useSEO } from '@/hooks/useSEO'
+import { normalizeImageUrl } from '@/lib/image'
 import { notifications } from '@/lib/notifications'
 import { supabase } from '@/lib/supabase'
 import type { Product, Brand, Category } from '@/types/database'
@@ -26,6 +27,22 @@ type ProductFormState = {
   tags: string
 }
 
+type ProductVariantFormState = {
+  size: string
+  color: string
+  colorHex: string
+  stock: string
+  price: string
+}
+
+const emptyVariantState: ProductVariantFormState = {
+  size: '',
+  color: '',
+  colorHex: '',
+  stock: '0',
+  price: '0',
+}
+
 const initialFormState: ProductFormState = {
   name: '',
   slug: '',
@@ -41,19 +58,35 @@ const initialFormState: ProductFormState = {
   tags: '',
 }
 
-const productSchema = z.object({
+export const productSchema = z.object({
   name: z.string().min(3, 'El nombre debe tener al menos 3 caracteres'),
   slug: z.string().min(3, 'El slug debe tener al menos 3 caracteres').regex(/^[a-z0-9-]+$/, 'El slug solo puede tener letras minúsculas, números y guiones'),
   description: z.string().optional(),
-  imageUrl: z.string().url('La URL de la imagen no es válida').optional().or(z.literal('')),
-  base_price: z.string().min(1, 'El precio es requerido'),
-  compare_price: z.string().optional(),
+  imageUrl: z.string().url({ message: 'La URL de la imagen no es válida' }).optional().or(z.literal('')),
+  base_price: z.string().min(1, 'El precio es requerido').refine((value) => !Number.isNaN(Number(value)) && Number(value) >= 0, {
+    message: 'El precio debe ser un número válido',
+  }),
+  compare_price: z.string().optional().refine((value) => value === '' || (!Number.isNaN(Number(value)) && Number(value) >= 0), {
+    message: 'El precio de comparación debe ser un número válido',
+  }),
   brand_id: z.string().optional(),
   category_id: z.string().optional(),
   is_active: z.boolean(),
   is_featured: z.boolean(),
   is_drop: z.boolean(),
   tags: z.string().optional(),
+})
+
+const variantSchema = z.object({
+  size: z.string().optional().or(z.literal('')),
+  color: z.string().optional().or(z.literal('')),
+  colorHex: z.string().optional().or(z.literal('')),
+  stock: z.string().refine((value) => !Number.isNaN(Number(value)) && Number(value) >= 0, {
+    message: 'El stock debe ser un número entero válido',
+  }),
+  price: z.string().optional().refine((value) => value === '' || (!Number.isNaN(Number(value)) && Number(value) >= 0), {
+    message: 'El precio de variante debe ser un número válido',
+  }),
 })
 
 function createSlug(value: string) {
@@ -69,6 +102,7 @@ export default function ProductsAdmin() {
 
   const queryClient = useQueryClient()
   const [form, setForm] = useState<ProductFormState>(initialFormState)
+  const [variants, setVariants] = useState<ProductVariantFormState[]>([emptyVariantState])
   const [isCreating, setIsCreating] = useState(false)
   const [productMessage, setProductMessage] = useState<string | null>(null)
   const { data, isLoading, error } = useQuery<ProductWithRelations[]>({
@@ -102,9 +136,29 @@ export default function ProductsAdmin() {
   })
 
   const createProduct = useMutation({
-    mutationFn: async (payload: Record<string, unknown>) => {
-      const { data, error } = await supabase.from('products').insert(payload as any).select().single()
+    mutationFn: async (payload: { product: Record<string, unknown>; variants: ProductVariantFormState[] }) => {
+      const { data, error } = await supabase.from('products').insert(payload.product as any).select().single()
       if (error) throw error
+
+      if (payload.variants.length > 0) {
+        const variantPayload = payload.variants.map((variant) => ({
+          product_id: data.id,
+          sku: null,
+          size: variant.size || null,
+          color: variant.color || null,
+          color_hex: variant.colorHex || null,
+          stock: Number(variant.stock),
+          price: variant.price ? Number(variant.price) : null,
+          is_active: true,
+        }))
+
+        const { error: variantError } = await supabase.from('product_variants').insert(variantPayload)
+        if (variantError) {
+          await supabase.from('products').delete().eq('id', data.id)
+          throw variantError
+        }
+      }
+
       return data as Product
     },
     onSuccess: (createdProduct) => {
@@ -117,6 +171,7 @@ export default function ProductsAdmin() {
         return old ? [newProduct, ...old] : [newProduct]
       })
       setForm(initialFormState)
+      setVariants([emptyVariantState])
       setProductMessage('Producto creado correctamente.')
       notifications.success('Producto creado', 'El producto se guardó correctamente en el catálogo.')
       setIsCreating(false)
@@ -135,6 +190,13 @@ export default function ProductsAdmin() {
       ...(field === 'name' && typeof value === 'string' ? { slug: createSlug(value) } : {}),
     }))
   }
+
+  const handleVariantChange = (index: number, field: keyof ProductVariantFormState, value: string) => {
+    setVariants((prev) => prev.map((variant, i) => (i === index ? { ...variant, [field]: value } : variant)))
+  }
+
+  const addVariant = () => setVariants((prev) => [...prev, emptyVariantState])
+  const removeVariant = (index: number) => setVariants((prev) => prev.filter((_, i) => i !== index))
 
   const handleSubmit = async (event: { preventDefault: () => void }) => {
     event.preventDefault()
@@ -156,20 +218,34 @@ export default function ProductsAdmin() {
       return
     }
 
+    const normalizedImageUrl = normalizeImageUrl(form.imageUrl)
+    const parsedVariants = variants
+      .filter((variant) => variant.size || variant.color || variant.colorHex || variant.stock !== '0' || variant.price !== '0')
+      .map((variant) => variantSchema.parse({
+        size: variant.size || '',
+        color: variant.color || '',
+        colorHex: variant.colorHex || '',
+        stock: variant.stock.trim() || '0',
+        price: variant.price.trim() || '',
+      })) as ProductVariantFormState[]
+
     const payload = {
-      name: form.name,
-      slug: form.slug || createSlug(form.name),
-      description: form.description || null,
-      brand_id: form.brand_id || null,
-      category_id: form.category_id || null,
-      base_price: Number(form.base_price) || 0,
-      compare_price: form.compare_price ? Number(form.compare_price) : null,
-      images: form.imageUrl ? [form.imageUrl] : [],
-      tags: form.tags ? form.tags.split(',').map((tag) => tag.trim()).filter(Boolean) : [],
-      is_active: form.is_active,
-      is_featured: form.is_featured,
-      is_drop: form.is_drop,
-      metadata: {},
+      product: {
+        name: form.name,
+        slug: form.slug || createSlug(form.name),
+        description: form.description || null,
+        brand_id: form.brand_id || null,
+        category_id: form.category_id || null,
+        base_price: Number(form.base_price) || 0,
+        compare_price: form.compare_price ? Number(form.compare_price) : null,
+        images: normalizedImageUrl ? [normalizedImageUrl] : [],
+        tags: form.tags ? form.tags.split(',').map((tag) => tag.trim()).filter(Boolean) : [],
+        is_active: form.is_active,
+        is_featured: form.is_featured,
+        is_drop: form.is_drop,
+        metadata: {},
+      },
+      variants: parsedVariants,
     }
 
     await createProduct.mutateAsync(payload)
@@ -341,6 +417,15 @@ export default function ProductsAdmin() {
                 ))}
               </select>
             </label>
+            <label className="block">
+              <span className="font-body text-sm text-muted">Imagen URL</span>
+              <input
+                value={form.imageUrl}
+                onChange={(event) => handleInput('imageUrl', event.target.value)}
+                placeholder="https://... o link de Drive"
+                className="mt-2 w-full rounded border border-border bg-bg px-3 py-2 text-white"
+              />
+            </label>
             <div className="flex flex-col gap-3 lg:col-span-2 md:flex-row md:items-center md:justify-between">
               <label className="flex items-center gap-2">
                 <input
@@ -369,6 +454,80 @@ export default function ProductsAdmin() {
                 />
                 <span className="font-body text-sm text-muted">Es drop</span>
               </label>
+            </div>
+            <div className="lg:col-span-2 rounded-3xl border border-border bg-bg-2 p-4">
+              <div className="mb-4 flex items-center justify-between gap-3">
+                <div>
+                  <p className="font-mono text-label text-lime">— Variantes</p>
+                  <p className="font-body text-sm text-muted">Agrega tallas, colores y stock para este producto.</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={addVariant}
+                  className="rounded-full border border-lime px-3 py-2 text-sm text-lime hover:bg-lime/10"
+                >
+                  Añadir variante
+                </button>
+              </div>
+              {variants.map((variant, index) => (
+                <div key={index} className="grid gap-3 lg:grid-cols-5 mb-3 items-end">
+                  <label className="block">
+                    <span className="font-body text-sm text-muted">Talla</span>
+                    <input
+                      value={variant.size}
+                      onChange={(event) => handleVariantChange(index, 'size', event.target.value)}
+                      className="mt-2 w-full rounded border border-border bg-bg px-3 py-2 text-white"
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="font-body text-sm text-muted">Color</span>
+                    <input
+                      value={variant.color}
+                      onChange={(event) => handleVariantChange(index, 'color', event.target.value)}
+                      className="mt-2 w-full rounded border border-border bg-bg px-3 py-2 text-white"
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="font-body text-sm text-muted">Hex color</span>
+                    <input
+                      value={variant.colorHex}
+                      onChange={(event) => handleVariantChange(index, 'colorHex', event.target.value)}
+                      placeholder="#FFFFFF"
+                      className="mt-2 w-full rounded border border-border bg-bg px-3 py-2 text-white"
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="font-body text-sm text-muted">Stock</span>
+                    <input
+                      type="number"
+                      min="0"
+                      value={variant.stock}
+                      onChange={(event) => handleVariantChange(index, 'stock', event.target.value)}
+                      className="mt-2 w-full rounded border border-border bg-bg px-3 py-2 text-white"
+                    />
+                  </label>
+                  <div className="flex flex-col gap-2">
+                    <label className="block">
+                      <span className="font-body text-sm text-muted">Precio variante</span>
+                      <input
+                        type="number"
+                        min="0"
+                        step="1"
+                        value={variant.price}
+                        onChange={(event) => handleVariantChange(index, 'price', event.target.value)}
+                        className="mt-2 w-full rounded border border-border bg-bg px-3 py-2 text-white"
+                      />
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => removeVariant(index)}
+                      className="self-end text-red hover:underline"
+                    >
+                      Eliminar
+                    </button>
+                  </div>
+                </div>
+              ))}
             </div>
 
             <div className="lg:col-span-2 flex items-center gap-3">

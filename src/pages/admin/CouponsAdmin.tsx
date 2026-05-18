@@ -1,9 +1,29 @@
 import { useState } from 'react'
+import { z } from 'zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useSEO } from '@/hooks/useSEO'
-import { Modal, Toast } from '@/components/ui'
+import { Modal } from '@/components/ui'
+import { notifications } from '@/lib/notifications'
 import { supabase } from '@/lib/supabase'
 import type { Coupon } from '@/types/database'
+
+export const couponSchema = z.object({
+  code: z.string().min(3, 'El código debe tener al menos 3 caracteres'),
+  type: z.enum(['percentage', 'fixed']),
+  value: z.string().refine((value) => !Number.isNaN(Number(value)) && Number(value) >= 0, {
+    message: 'El valor debe ser un número válido',
+  }),
+  minOrder: z.string().refine((value) => !Number.isNaN(Number(value)) && Number(value) >= 0, {
+    message: 'El monto mínimo debe ser un número válido',
+  }),
+  maxUses: z.string().optional().refine((value) => value === undefined || value === '' || (!Number.isNaN(Number(value)) && Number(value) >= 0), {
+    message: 'Los usos máximos deben ser un número válido',
+  }),
+  expiresAt: z.string().optional().refine((value) => value === undefined || value === '' || !Number.isNaN(Date.parse(value)), {
+    message: 'La fecha de expiración no es válida',
+  }),
+  isActive: z.boolean(),
+})
 
 export default function CouponsAdmin() {
   useSEO({ title: 'Admin Cupones | Magnus' })
@@ -26,9 +46,6 @@ export default function CouponsAdmin() {
   const [editedExpiresAt, setEditedExpiresAt] = useState('')
   const [editedIsActive, setEditedIsActive] = useState(true)
 
-  const [toastMessage, setToastMessage] = useState('')
-  const [toastType, setToastType] = useState<'success' | 'error'>('success')
-  const [toastVisible, setToastVisible] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<Coupon | null>(null)
   const [savingCouponId, setSavingCouponId] = useState<string | null>(null)
   const [deletingCouponId, setDeletingCouponId] = useState<string | null>(null)
@@ -41,12 +58,6 @@ export default function CouponsAdmin() {
       return data ?? []
     },
   })
-
-  const showToast = (message: string, type: 'success' | 'error') => {
-    setToastMessage(message)
-    setToastType(type)
-    setToastVisible(true)
-  }
 
   const createCoupon = useMutation({
     mutationFn: async () => {
@@ -86,10 +97,10 @@ export default function CouponsAdmin() {
       setMaxUses('')
       setExpiresAt('')
       setIsActive(true)
-      showToast('Cupón creado correctamente.', 'success')
+      notifications.success('Cupón creado', 'El cupón se guardó correctamente.')
     },
     onError: (error) => {
-      showToast(error instanceof Error ? error.message : 'No se pudo crear el cupón.', 'error')
+      notifications.error('Error al crear el cupón', error instanceof Error ? error.message : 'No se pudo crear el cupón.')
     },
   })
 
@@ -137,10 +148,10 @@ export default function CouponsAdmin() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'coupons'] })
       resetEditCoupon()
-      showToast('Cupón actualizado correctamente.', 'success')
+      notifications.success('Cupón actualizado', 'Los cambios se guardaron correctamente.')
     },
     onError: (error) => {
-      showToast(error instanceof Error ? error.message : 'No se pudo actualizar el cupón.', 'error')
+      notifications.error('Error al actualizar el cupón', error instanceof Error ? error.message : 'No se pudo actualizar el cupón.')
     },
   })
 
@@ -153,10 +164,10 @@ export default function CouponsAdmin() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'coupons'] })
       if (editingCouponId) resetEditCoupon()
-      showToast('Cupón eliminado correctamente.', 'success')
+      notifications.success('Cupón eliminado', 'El cupón se eliminó correctamente.')
     },
     onError: (error) => {
-      showToast(error instanceof Error ? error.message : 'No se pudo eliminar el cupón.', 'error')
+      notifications.error('Error al eliminar el cupón', error instanceof Error ? error.message : 'No se pudo eliminar el cupón.')
     },
   })
 
@@ -164,7 +175,21 @@ export default function CouponsAdmin() {
 
   const handleSubmit = async (event: { preventDefault: () => void }) => {
     event.preventDefault()
-    if (!code.trim()) return
+    const parsed = couponSchema.safeParse({
+      code,
+      type,
+      value,
+      minOrder,
+      maxUses,
+      expiresAt,
+      isActive,
+    })
+
+    if (!parsed.success) {
+      notifications.error('Error en el formulario', parsed.error.issues[0]?.message ?? 'Revisa los campos del formulario.')
+      return
+    }
+
     await createCoupon.mutateAsync()
   }
 
@@ -206,7 +231,23 @@ export default function CouponsAdmin() {
   }
 
   const handleSaveCoupon = async () => {
-    if (!editingCouponId || !editedCode.trim()) return
+    if (!editingCouponId) return
+
+    const parsed = couponSchema.safeParse({
+      code: editedCode,
+      type: editedType,
+      value: editedValue,
+      minOrder: editedMinOrder,
+      maxUses: editedMaxUses,
+      expiresAt: editedExpiresAt,
+      isActive: editedIsActive,
+    })
+
+    if (!parsed.success) {
+      notifications.error('Error en el formulario', parsed.error.issues[0]?.message ?? 'Revisa los campos del formulario.')
+      return
+    }
+
     setSavingCouponId(editingCouponId)
     try {
       await updateCoupon.mutateAsync({
@@ -254,9 +295,6 @@ export default function CouponsAdmin() {
           </thead>
           <tbody>
             {data.map((coupon) => {
-              const isEditing = editingCouponId === coupon.id
-              const isSaving = savingCouponId === coupon.id
-              const isDeleting = deletingCouponId === coupon.id
               return (
                 <tr key={coupon.id} className="border-b border-border hover:bg-bg">
                   <td className="px-4 py-4 font-mono">{coupon.code}</td>
@@ -479,7 +517,6 @@ export default function CouponsAdmin() {
         </section>
       </div>
 
-      <Toast isVisible={toastVisible} type={toastType} message={toastMessage} onClose={() => setToastVisible(false)} />
       <Modal isOpen={Boolean(deleteTarget)} onClose={() => setDeleteTarget(null)} title="Eliminar cupón">
         <div className="space-y-6">
           <p className="font-body text-white">

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { z } from 'zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useSEO } from '@/hooks/useSEO'
+import { normalizeImageUrl } from '@/lib/image'
 import { Modal } from '@/components/ui'
 import { notifications } from '@/lib/notifications'
 import { supabase } from '@/lib/supabase'
@@ -33,6 +34,8 @@ export default function BrandsAdmin() {
   const [editingBrandId, setEditingBrandId] = useState<string | null>(null)
   const [editedName, setEditedName] = useState('')
   const [editedSlug, setEditedSlug] = useState('')
+  const [editedLogoUrl, setEditedLogoUrl] = useState('')
+  const [editedCoverUrl, setEditedCoverUrl] = useState('')
 
   const [deleteTarget, setDeleteTarget] = useState<Brand | null>(null)
   const [savingBrandId, setSavingBrandId] = useState<string | null>(null)
@@ -64,8 +67,8 @@ export default function BrandsAdmin() {
       const payload = {
         name: trimmedName,
         slug,
-        logo_url: logoUrl || null,
-        cover_url: coverUrl || null,
+        logo_url: normalizeImageUrl(logoUrl) || null,
+        cover_url: normalizeImageUrl(coverUrl) || null,
         description: null,
         is_featured: false,
         sort_order: 0,
@@ -90,7 +93,7 @@ export default function BrandsAdmin() {
   })
 
   const updateBrand = useMutation({
-    mutationFn: async (payload: { id: string; name: string; slug: string }) => {
+    mutationFn: async (payload: { id: string; name: string; slug: string; logo_url?: string | null; cover_url?: string | null }) => {
       const trimmedName = payload.name.trim()
       if (!trimmedName) throw new Error('El nombre es requerido.')
 
@@ -114,7 +117,12 @@ export default function BrandsAdmin() {
 
       const { data, error } = await supabase
         .from('brands')
-        .update({ name: trimmedName, slug: payload.slug })
+        .update({
+          name: trimmedName,
+          slug: payload.slug,
+          logo_url: normalizeImageUrl(payload.logo_url || '' ) || null,
+          cover_url: normalizeImageUrl(payload.cover_url || '' ) || null,
+        })
         .eq('id', payload.id)
         .select()
         .single()
@@ -178,12 +186,16 @@ export default function BrandsAdmin() {
     setEditingBrandId(brand.id)
     setEditedName(brand.name)
     setEditedSlug(brand.slug ?? '')
+    setEditedLogoUrl(brand.logo_url ?? '')
+    setEditedCoverUrl(brand.cover_url ?? '')
   }
 
   const resetEditBrand = () => {
     setEditingBrandId(null)
     setEditedName('')
     setEditedSlug('')
+    setEditedLogoUrl('')
+    setEditedCoverUrl('')
   }
 
   const handleDeleteBrand = (brand: Brand) => {
@@ -209,6 +221,8 @@ export default function BrandsAdmin() {
         id: editingBrandId,
         name: editedName.trim(),
         slug: createSlug(editedSlug || editedName),
+        logo_url: editedLogoUrl,
+        cover_url: editedCoverUrl,
       })
     } finally {
       setSavingBrandId(null)

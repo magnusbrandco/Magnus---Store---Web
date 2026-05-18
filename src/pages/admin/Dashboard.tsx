@@ -1,7 +1,25 @@
 import { useEffect, useState } from 'react'
+import { z } from 'zod'
 import { useSEO } from '@/hooks/useSEO'
+import { notifications } from '@/lib/notifications'
 import { useHomeCounts, useHomepageSettings, useUpdateHomepageSettings } from '@/hooks/useHomeContent'
 import type { HomepageSetting } from '@/types/database'
+
+const homepageSettingsSchema = z.object({
+  id: z.string().min(1, 'El id es requerido'),
+  hero_series_label: z.string(),
+  hero_title: z.string().min(3, 'El título principal es requerido'),
+  hero_description: z.string(),
+  hero_primary_cta_label: z.string(),
+  hero_primary_cta_link: z.string().optional().or(z.literal('')),
+  hero_secondary_cta_label: z.string(),
+  hero_secondary_cta_link: z.string().optional().or(z.literal('')),
+  hero_highlight_color: z.string().regex(/^#([0-9A-Fa-f]{6})$/, 'El color destacado no es válido'),
+  categories_section_label: z.string(),
+  categories_section_title: z.string(),
+  brands_section_label: z.string(),
+  brands_section_title: z.string(),
+})
 
 const emptySettings: Omit<HomepageSetting, 'updated_at'> = {
   id: '',
@@ -40,7 +58,16 @@ export default function Dashboard() {
   const handleSubmit = async (event: any) => {
     event.preventDefault()
     if (!form.id) return
-    await updateSettings.mutateAsync(form as Partial<HomepageSetting> & { id: string })
+
+    const parsed = homepageSettingsSchema.safeParse(form)
+
+    if (!parsed.success) {
+      notifications.error('Error en el formulario', parsed.error.issues[0]?.message ?? 'Revisa los campos del formulario.')
+      return
+    }
+
+    await updateSettings.mutateAsync(parsed.data)
+    notifications.success('Contenido actualizado', 'Los cambios en la home se guardaron correctamente.')
   }
 
   return (
