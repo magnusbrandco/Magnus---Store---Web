@@ -6,7 +6,7 @@ import { useHomeCounts, useHomepageSettings, useUpdateHomepageSettings } from '@
 import type { HomepageSetting } from '@/types/database'
 
 const homepageSettingsSchema = z.object({
-  id: z.string().min(1, 'El id es requerido'),
+  id: z.string().optional(),
   hero_series_label: z.string(),
   hero_title: z.string().min(3, 'El título principal es requerido'),
   hero_description: z.string(),
@@ -229,7 +229,7 @@ export default function Dashboard() {
             <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
               <button
                 type="submit"
-                disabled={updateSettings.isPending || !form.id}
+                disabled={updateSettings.isPending}
                 className="btn-primary w-full md:w-auto"
               >
                 {updateSettings.isPending ? 'Guardando...' : 'Guardar contenido de home'}

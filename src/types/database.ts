@@ -249,6 +249,8 @@ export interface Product {
   name: string
   slug: string
   description: string | null
+  details: string | null
+  shipping_returns: string | null
   brand_id: string | null
   category_id: string | null
   base_price: number

@@ -17,6 +17,8 @@ type ProductFormState = {
   name: string
   slug: string
   description: string
+  details: string
+  shippingReturns: string
   imageUrl: string
   base_price: string
   compare_price: string
@@ -50,6 +52,8 @@ const initialFormState: ProductFormState = {
   name: '',
   slug: '',
   description: '',
+  details: '',
+  shippingReturns: '',
   imageUrl: '',
   base_price: '',
   compare_price: '',
@@ -66,6 +70,8 @@ export const productSchema = z.object({
   slug: z.string().min(3, 'El slug debe tener al menos 3 caracteres').regex(/^[a-z0-9-]+$/, 'El slug solo puede tener letras minúsculas, números y guiones'),
   description: z.string().optional(),
   imageUrl: z.string().url({ message: 'La URL de la imagen no es válida' }).optional().or(z.literal('')),
+  details: z.string().optional().or(z.literal('')),
+  shippingReturns: z.string().optional().or(z.literal('')),
   base_price: z.string().min(1, 'El precio es requerido').refine((value) => !Number.isNaN(Number(value)) && Number(value) >= 0, {
     message: 'El precio debe ser un número válido',
   }),
@@ -81,7 +87,7 @@ export const productSchema = z.object({
 })
 
 const variantSchema = z.object({
-  id: z.string().optional(),
+  id: z.string().nullable().optional(),
   size: z.string().optional().or(z.literal('')),
   color: z.string().optional().or(z.literal('')),
   colorHex: z.string().optional().or(z.literal('')),
@@ -118,7 +124,7 @@ export default function ProductsAdmin() {
     queryFn: async () => {
       const { data, error } = await (supabase
         .from('products')
-        .select(`*, brand:brands(id, name), category:categories(id, name), variants:product_variants(id, sku, size, color, color_hex, stock, price, is_active)`)
+        .select(`*, details, shipping_returns, brand:brands(id, name), category:categories(id, name), variants:product_variants(id, sku, size, color, color_hex, stock, price, is_active)`)
         .order('created_at', { ascending: false }) as any)
       if (error) throw error
       return data ?? []
@@ -246,6 +252,8 @@ export default function ProductsAdmin() {
       name: product.name,
       slug: product.slug,
       description: product.description ?? '',
+      details: product.details ?? '',
+      shippingReturns: product.shipping_returns ?? '',
       imageUrl: product.images[0] ?? '',
       base_price: String(product.base_price),
       compare_price: product.compare_price !== null ? String(product.compare_price) : '',
@@ -410,6 +418,8 @@ export default function ProductsAdmin() {
         name: form.name,
         slug: form.slug || createSlug(form.name),
         description: form.description || null,
+        details: form.details || null,
+        shipping_returns: form.shippingReturns || null,
         brand_id: form.brand_id || null,
         category_id: form.category_id || null,
         base_price: Number(form.base_price) || 0,
@@ -549,6 +559,22 @@ export default function ProductsAdmin() {
               <textarea
                 value={form.description}
                 onChange={(event) => handleInput('description', event.target.value)}
+                className="mt-2 w-full min-h-[120px] rounded border border-border bg-bg px-3 py-2 text-white"
+              />
+            </label>
+            <label className="block lg:col-span-2">
+              <span className="font-body text-sm text-muted">Detalles</span>
+              <textarea
+                value={form.details}
+                onChange={(event) => handleInput('details', event.target.value)}
+                className="mt-2 w-full min-h-[120px] rounded border border-border bg-bg px-3 py-2 text-white"
+              />
+            </label>
+            <label className="block lg:col-span-2">
+              <span className="font-body text-sm text-muted">Envío y devoluciones</span>
+              <textarea
+                value={form.shippingReturns}
+                onChange={(event) => handleInput('shippingReturns', event.target.value)}
                 className="mt-2 w-full min-h-[120px] rounded border border-border bg-bg px-3 py-2 text-white"
               />
             </label>

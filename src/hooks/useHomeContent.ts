@@ -10,7 +10,7 @@ export function useHomepageSettings() {
       const { data, error } = await supabase
         .from('homepage_settings')
         .select('*')
-        .single()
+        .maybeSingle()
 
       if (error) throw error
       return data
@@ -22,13 +22,17 @@ export function useUpdateHomepageSettings() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async (settings: Partial<HomepageSetting> & { id: string }) => {
-      const { data, error } = await supabase
-        .from('homepage_settings')
-        .update(settings)
-        .eq('id', settings.id)
-        .select()
-        .single()
+    mutationFn: async (settings: Partial<HomepageSetting> & { id?: string }) => {
+      const payload = { ...settings } as Partial<HomepageSetting>
+      if (!payload.id) {
+        delete payload.id
+      }
+
+      const query = payload.id
+        ? supabase.from('homepage_settings').update(payload).eq('id', payload.id)
+        : supabase.from('homepage_settings').insert([payload] as any)
+
+      const { data, error } = await query.select().single()
 
       if (error) throw error
       return data

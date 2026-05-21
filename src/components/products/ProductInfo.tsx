@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Heart, ChevronDown, ChevronUp } from 'lucide-react'
@@ -27,14 +27,6 @@ export function ProductInfo({ product, onAddToCart }: ProductInfoProps) {
   const [quantity, setQuantity] = useState(1)
   const [openAccordion, setOpenAccordion] = useState<string | null>(null)
 
-  const selectedVariant = product.variants?.find(
-    (v) => v.size === selectedSize && v.color_hex === selectedColor
-  )
-
-  const stock = selectedVariant?.stock ?? 0
-  const totalStock = product.variants?.reduce((s, v) => s + v.stock, 0) || 0
-  const price = selectedVariant?.price || product.base_price
-
   const colors = product.variants
     ?.filter((v) => v.color_hex)
     ?.reduce((acc: any[], v) => {
@@ -45,6 +37,26 @@ export function ProductInfo({ product, onAddToCart }: ProductInfoProps) {
     }, []) || []
 
   const sizes = [...new Set(product.variants?.map((v) => v.size).filter(Boolean))] as string[]
+
+  const selectedVariant =
+    product.variants?.find((v) => v.size === selectedSize && v.color_hex === selectedColor) ??
+    (product.variants?.length === 1 ? product.variants[0] : undefined)
+
+  const stock = selectedVariant?.stock ?? 0
+  const totalStock = product.variants?.reduce((s, v) => s + (v.stock ?? 0), 0) || 0
+  const price = selectedVariant?.price || product.base_price
+
+  useEffect(() => {
+    if (!selectedSize && sizes.length === 1) {
+      setSelectedSize(sizes[0])
+    }
+  }, [selectedSize, sizes])
+
+  useEffect(() => {
+    if (!selectedColor && colors.length === 1) {
+      setSelectedColor(colors[0].hex)
+    }
+  }, [selectedColor, colors])
 
   return (
     <div className="space-y-6 sticky top-24">
@@ -90,6 +102,7 @@ export function ProductInfo({ product, onAddToCart }: ProductInfoProps) {
       <div className="flex items-center gap-2">
         <div className="flex items-center border border-border">
           <button
+            type="button"
             onClick={() => setQuantity(Math.max(1, quantity - 1))}
             className="px-4 py-3 text-muted hover:text-white transition-colors"
           >
@@ -97,6 +110,7 @@ export function ProductInfo({ product, onAddToCart }: ProductInfoProps) {
           </button>
           <span className="px-4 py-3 font-mono text-sm min-w-[3rem] text-center">{quantity}</span>
           <button
+            type="button"
             onClick={() => setQuantity(Math.min(stock || 99, quantity + 1))}
             className="px-4 py-3 text-muted hover:text-white transition-colors"
           >
@@ -110,10 +124,10 @@ export function ProductInfo({ product, onAddToCart }: ProductInfoProps) {
           variant="primary"
           size="lg"
           className="flex-1"
-          disabled={!selectedSize || stock === 0}
+          disabled={!selectedVariant || stock === 0}
           onClick={() => selectedVariant && onAddToCart(selectedVariant.id, quantity)}
         >
-          Agregar al carrito
+          {selectedVariant ? 'Agregar al carrito' : 'Selecciona una variante'}
         </Button>
         <Button
           variant="outline"
@@ -133,9 +147,9 @@ export function ProductInfo({ product, onAddToCart }: ProductInfoProps) {
       </div>
 
       {[
-        { id: 'desc', title: 'Descripción', content: product.description },
-        { id: 'details', title: 'Detalles', content: '• 100% Algodón\n• Corte regular\n• Fabricado en Colombia' },
-        { id: 'shipping', title: 'Envío y devoluciones', content: 'Envío gratis en pedidos +$200K. Devoluciones dentro de 30 días.' },
+        { id: 'desc', title: 'Descripción', content: product.description || 'Sin descripción disponible.' },
+        { id: 'details', title: 'Detalles', content: product.details || 'Detalle del producto no disponible.' },
+        { id: 'shipping', title: 'Envío y devoluciones', content: product.shipping_returns || 'Envío gratis en pedidos +$200K. Devoluciones dentro de 30 días.' },
       ].map((section) => (
         <div key={section.id} className="border-t border-border pt-4">
           <button

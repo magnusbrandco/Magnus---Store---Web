@@ -1,14 +1,16 @@
-import { useParams } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import { useProduct } from '@/hooks/useProducts'
 import { useCart } from '@/hooks/useCart'
 import { ProductImages } from '@/components/products/ProductImages'
 import { ProductInfo } from '@/components/products/ProductInfo'
 import { RelatedProducts } from '@/components/products/RelatedProducts'
 import { Skeleton } from '@/components/ui/Skeleton'
+import { ChevronLeft } from 'lucide-react'
 import { useSEO } from '@/hooks/useSEO'
 
 export default function ProductDetail() {
   const { slug } = useParams<{ slug: string }>()
+  const navigate = useNavigate()
   const { data: product, isLoading } = useProduct(slug || '')
   const { addItem } = useCart()
 
@@ -67,6 +69,14 @@ export default function ProductDetail() {
   return (
     <div className="pt-24 pb-16">
       <div className="container-wide">
+        <button
+          type="button"
+          onClick={() => navigate(-1)}
+          className="mb-8 inline-flex items-center gap-2 text-sm font-medium text-muted hover:text-white"
+        >
+          <ChevronLeft size={18} /> Volver
+        </button>
+
         <div className="grid md:grid-cols-12 gap-8 lg:gap-12">
           <div className="md:col-span-7">
             <ProductImages images={product.images || []} name={product.name} />
