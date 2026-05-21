@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
+import { Badge } from '@/components/ui/Badge'
 import type { Brand } from '@/types'
 import { useSEO } from '@/hooks/useSEO'
 import { Skeleton } from '@/components/ui/Skeleton'
@@ -9,9 +10,14 @@ export default function BrandsPage() {
   const { data: brands, isLoading } = useQuery<Brand[]>({
     queryKey: ['brands'],
     queryFn: async (): Promise<Brand[]> => {
-      const { data } = await supabase.from('brands').select('*').order('name')
+      const { data } = await supabase
+        .from('brands')
+        .select('id, name, slug, logo_url, cover_url, description, is_featured')
+        .order('is_featured', { ascending: false })
+        .order('name')
       return (data ?? []) as Brand[]
     },
+    staleTime: 1000 * 60 * 2,
   })
 
   useSEO({ title: 'Marcas | Magnus' })
@@ -37,12 +43,23 @@ export default function BrandsPage() {
                 to={`/marca/${brand.slug}`}
                 className="card p-6 border border-border hover:border-lime transition-colors"
               >
-                <div>
-                  <h2 className="font-display text-xl text-white">{brand.name}</h2>
-                  {brand.description && (
-                    <p className="font-body text-muted mt-2 line-clamp-3">{brand.description}</p>
-                  )}
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <h2 className="font-display text-xl text-white">{brand.name}</h2>
+                    {brand.description && (
+                      <p className="font-body text-muted mt-2 line-clamp-3">{brand.description}</p>
+                    )}
+                  </div>
+                  {brand.is_featured && <Badge variant="new">Destacada</Badge>}
                 </div>
+                {brand.logo_url && (
+                  <img
+                    src={brand.logo_url}
+                    alt={brand.name}
+                    className="mt-6 h-24 w-full object-contain rounded-lg bg-bg"
+                    loading="lazy"
+                  />
+                )}
               </Link>
             ))}
           </div>

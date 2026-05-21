@@ -5,11 +5,12 @@ import { useSEO } from '@/hooks/useSEO'
 import { normalizeImageUrl, uploadImageFile } from '@/lib/image'
 import { notifications } from '@/lib/notifications'
 import { supabase } from '@/lib/supabase'
-import type { Product, Brand, Category } from '@/types/database'
+import type { Product, ProductVariant, Brand, Category } from '@/types/database'
 
 interface ProductWithRelations extends Product {
   brand: Brand | null
   category: Category | null
+  variants: ProductVariant[]
 }
 
 type ProductFormState = {
@@ -28,6 +29,7 @@ type ProductFormState = {
 }
 
 type ProductVariantFormState = {
+  id?: string | null
   size: string
   color: string
   colorHex: string
@@ -36,6 +38,7 @@ type ProductVariantFormState = {
 }
 
 const emptyVariantState: ProductVariantFormState = {
+  id: null,
   size: '',
   color: '',
   colorHex: '',
@@ -78,6 +81,7 @@ export const productSchema = z.object({
 })
 
 const variantSchema = z.object({
+  id: z.string().optional(),
   size: z.string().optional().or(z.literal('')),
   color: z.string().optional().or(z.literal('')),
   colorHex: z.string().optional().or(z.literal('')),
@@ -104,6 +108,7 @@ export default function ProductsAdmin() {
   const [form, setForm] = useState<ProductFormState>(initialFormState)
   const [variants, setVariants] = useState<ProductVariantFormState[]>([emptyVariantState])
   const [isCreating, setIsCreating] = useState(false)
+  const [editingProductId, setEditingProductId] = useState<string | null>(null)
   const [productMessage, setProductMessage] = useState<string | null>(null)
   const [imageFile, setImageFile] = useState<File | null>(null)
   const [imagePreviewUrl, setImagePreviewUrl] = useState('')
@@ -113,7 +118,7 @@ export default function ProductsAdmin() {
     queryFn: async () => {
       const { data, error } = await (supabase
         .from('products')
-        .select(`*, brand:brands(id, name), category:categories(id, name)`)
+        .select(`*, brand:brands(id, name), category:categories(id, name), variants:product_variants(id, sku, size, color, color_hex, stock, price, is_active)`)
         .order('created_at', { ascending: false }) as any)
       if (error) throw error
       return data ?? []
@@ -164,12 +169,24 @@ export default function ProductsAdmin() {
 
       return data as Product
     },
-    onSuccess: (createdProduct) => {
+    onSuccess: (createdProduct, variables) => {
       queryClient.setQueryData<ProductWithRelations[]>(['admin', 'products'], (old) => {
         const newProduct: ProductWithRelations = {
           ...createdProduct,
           brand: brands?.find((brand) => brand.id === createdProduct.brand_id) ?? null,
           category: categories?.find((category) => category.id === createdProduct.category_id) ?? null,
+          variants: variables.variants.map((variant) => ({
+            id: variant.id ?? '',
+            product_id: createdProduct.id,
+            sku: null,
+            size: variant.size || null,
+            color: variant.color || null,
+            color_hex: variant.colorHex || null,
+            stock: Number(variant.stock),
+            price: variant.price ? Number(variant.price) : null,
+            is_active: true,
+            created_at: new Date().toISOString(),
+          })),
         }
         return old ? [newProduct, ...old] : [newProduct]
       })
@@ -177,6 +194,7 @@ export default function ProductsAdmin() {
       setVariants([emptyVariantState])
       setImageFile(null)
       setImagePreviewUrl('')
+      setEditingProductId(null)
       setProductMessage('Producto creado correctamente.')
       notifications.success('Producto creado', 'El producto se guardó correctamente en el catálogo.')
       setIsCreating(false)
@@ -211,8 +229,137 @@ export default function ProductsAdmin() {
     setVariants((prev) => prev.map((variant, i) => (i === index ? { ...variant, [field]: value } : variant)))
   }
 
+  const resetProductForm = () => {
+    setForm(initialFormState)
+    setVariants([emptyVariantState])
+    setEditingProductId(null)
+    setImageFile(null)
+    setImagePreviewUrl('')
+    setProductMessage(null)
+    setIsCreating(false)
+  }
+
+  const handleEditProduct = (product: ProductWithRelations) => {
+    setIsCreating(true)
+    setEditingProductId(product.id)
+    setForm({
+      name: product.name,
+      slug: product.slug,
+      description: product.description ?? '',
+      imageUrl: product.images[0] ?? '',
+      base_price: String(product.base_price),
+      compare_price: product.compare_price !== null ? String(product.compare_price) : '',
+      brand_id: product.brand_id ?? '',
+      category_id: product.category_id ?? '',
+      is_active: product.is_active,
+      is_featured: product.is_featured,
+      is_drop: product.is_drop,
+      tags: product.tags?.join(', ') ?? '',
+    })
+    setVariants(
+      product.variants.length > 0
+        ? product.variants.map((variant) => ({
+            id: variant.id,
+            size: variant.size ?? '',
+            color: variant.color ?? '',
+            colorHex: variant.color_hex ?? '',
+            stock: String(variant.stock),
+            price: variant.price !== null ? String(variant.price) : '',
+          }))
+        : [emptyVariantState]
+    )
+    setImagePreviewUrl(product.images[0] ?? '')
+  }
+
   const addVariant = () => setVariants((prev) => [...prev, emptyVariantState])
   const removeVariant = (index: number) => setVariants((prev) => prev.filter((_, i) => i !== index))
+
+  const updateProduct = useMutation({
+    mutationFn: async (payload: { id: string; product: Record<string, unknown>; variants: ProductVariantFormState[] }) => {
+      const { data, error } = await supabase.from('products').update(payload.product as any).eq('id', payload.id).select().single()
+      if (error) throw error
+
+      const { data: existingVariants, error: existingVariantsError } = await supabase
+        .from('product_variants')
+        .select('id')
+        .eq('product_id', payload.id)
+      if (existingVariantsError) throw existingVariantsError
+
+      const existingIds = (existingVariants ?? []).map((variant: { id: string }) => variant.id)
+      const incomingIds = payload.variants.filter((variant) => variant.id).map((variant) => variant.id as string)
+      const deleteIds = existingIds.filter((id) => !incomingIds.includes(id))
+
+      if (deleteIds.length > 0) {
+        const { error: deleteError } = await supabase.from('product_variants').delete().in('id', deleteIds)
+        if (deleteError) throw deleteError
+      }
+
+      for (const variant of payload.variants) {
+        if (variant.id) {
+          const { error: updateError } = await supabase
+            .from('product_variants')
+            .update({
+              size: variant.size || null,
+              color: variant.color || null,
+              color_hex: variant.colorHex || null,
+              stock: Number(variant.stock),
+              price: variant.price ? Number(variant.price) : null,
+            })
+            .eq('id', variant.id)
+          if (updateError) throw updateError
+        } else {
+          const { error: insertError } = await supabase.from('product_variants').insert([
+            {
+              product_id: payload.id,
+              sku: null,
+              size: variant.size || null,
+              color: variant.color || null,
+              color_hex: variant.colorHex || null,
+              stock: Number(variant.stock),
+              price: variant.price ? Number(variant.price) : null,
+              is_active: true,
+            },
+          ])
+          if (insertError) throw insertError
+        }
+      }
+
+      return data as Product
+    },
+    onSuccess: (updatedProduct, variables) => {
+      queryClient.setQueryData<ProductWithRelations[]>(['admin', 'products'], (old) => {
+        if (!old) return []
+        return old.map((product) => {
+          if (product.id !== updatedProduct.id) return product
+          return {
+            ...updatedProduct,
+            brand: brands?.find((brand) => brand.id === updatedProduct.brand_id) ?? null,
+            category: categories?.find((category) => category.id === updatedProduct.category_id) ?? null,
+            variants: variables.variants.map((variant) => ({
+              id: variant.id ?? '',
+              product_id: updatedProduct.id,
+              sku: null,
+              size: variant.size || null,
+              color: variant.color || null,
+              color_hex: variant.colorHex || null,
+              stock: Number(variant.stock),
+              price: variant.price ? Number(variant.price) : null,
+              is_active: true,
+              created_at: product.variants?.find((v) => v.id === variant.id)?.created_at ?? new Date().toISOString(),
+            })),
+          }
+        })
+      })
+      setProductMessage('Producto actualizado correctamente.')
+      notifications.success('Producto actualizado', 'Los datos del producto y las variantes se guardaron correctamente.')
+      resetProductForm()
+    },
+    onError: (error) => {
+      const message = error instanceof Error ? error.message : 'No se pudo actualizar el producto.'
+      notifications.error('Error al actualizar el producto', message)
+      setProductMessage(message)
+    },
+  })
 
   const handleSubmit = async (event: { preventDefault: () => void }) => {
     event.preventDefault()
@@ -250,6 +397,7 @@ export default function ProductsAdmin() {
     const parsedVariants = variants
       .filter((variant) => variant.size || variant.color || variant.colorHex || variant.stock !== '0' || variant.price !== '0')
       .map((variant) => variantSchema.parse({
+        id: variant.id,
         size: variant.size || '',
         color: variant.color || '',
         colorHex: variant.colorHex || '',
@@ -276,7 +424,15 @@ export default function ProductsAdmin() {
       variants: parsedVariants,
     }
 
-    await createProduct.mutateAsync(payload)
+    if (editingProductId) {
+      await updateProduct.mutateAsync({
+        id: editingProductId,
+        product: payload.product,
+        variants: parsedVariants,
+      })
+    } else {
+      await createProduct.mutateAsync(payload)
+    }
   }
 
   let content
@@ -294,8 +450,10 @@ export default function ProductsAdmin() {
               <th className="px-4 py-3">Producto</th>
               <th className="px-4 py-3">Marca / Categoría</th>
               <th className="px-4 py-3">Precio</th>
+              <th className="px-4 py-3">Stock</th>
               <th className="px-4 py-3">Activo</th>
               <th className="px-4 py-3">Destacado</th>
+              <th className="px-4 py-3">Acciones</th>
             </tr>
           </thead>
           <tbody>
@@ -310,8 +468,20 @@ export default function ProductsAdmin() {
                   <p className="font-body text-xs text-muted">{product.category?.name ?? 'Sin categoría'}</p>
                 </td>
                 <td className="px-4 py-4">${product.base_price.toFixed(0)}</td>
+                <td className="px-4 py-4">
+                  {product.variants?.reduce((total, variant) => total + (variant.stock ?? 0), 0)}
+                </td>
                 <td className="px-4 py-4">{product.is_active ? 'Sí' : 'No'}</td>
                 <td className="px-4 py-4">{product.is_featured ? 'Sí' : 'No'}</td>
+                <td className="px-4 py-4">
+                  <button
+                    type="button"
+                    onClick={() => handleEditProduct(product)}
+                    className="text-lime hover:underline"
+                  >
+                    Editar
+                  </button>
+                </td>
               </tr>
             ))}
           </tbody>
@@ -342,12 +512,14 @@ export default function ProductsAdmin() {
         <section className="mb-8 rounded-3xl border border-border bg-bg-3 p-6">
           <div className="mb-6 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <p className="font-mono text-label text-lime">— Nuevo producto</p>
-              <h2 className="font-display text-display-sm text-white mt-2">Agrega un producto nuevo a la tienda</h2>
+              <p className="font-mono text-label text-lime">— {editingProductId ? 'Editar producto' : 'Nuevo producto'}</p>
+              <h2 className="font-display text-display-sm text-white mt-2">
+                {editingProductId ? 'Actualiza un producto existente' : 'Agrega un producto nuevo a la tienda'}
+              </h2>
             </div>
             <button
               type="button"
-              onClick={() => setIsCreating(false)}
+              onClick={resetProductForm}
               className="font-body text-sm text-muted hover:text-white"
             >
               Cancelar

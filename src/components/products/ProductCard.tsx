@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { useEffect, useState } from 'react'
 import { Badge } from '@/components/ui/Badge'
+import { normalizeImageUrl } from '@/lib/image'
 import { formatCOP } from '@/lib/utils'
 import type { ProductCardData } from '@/types'
 
@@ -11,7 +12,7 @@ interface ProductCardProps {
 
 export function ProductCard({ product }: ProductCardProps) {
   const [activeImage, setActiveImage] = useState(0)
-  const images = product.images?.filter(Boolean) ?? []
+  const images = (product.images?.filter(Boolean) ?? []).map(normalizeImageUrl)
 
   useEffect(() => {
     if (!images.length) return
@@ -43,13 +44,17 @@ export function ProductCard({ product }: ProductCardProps) {
         className="relative aspect-[4/5] bg-bg-3 overflow-hidden mb-3"
         onMouseEnter={() => images.length > 1 && setActiveImage((current) => (current + 1) % images.length)}
       >
-        {images.length > 0 && (
+        {images.length > 0 ? (
           <img
             src={images[activeImage % images.length]}
             alt={product.name}
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
             loading="lazy"
           />
+        ) : (
+          <div className="flex h-full items-center justify-center bg-bg text-center text-sm text-muted">
+            Imagen no disponible
+          </div>
         )}
 
         <div className="absolute top-3 left-3 flex flex-col gap-1">

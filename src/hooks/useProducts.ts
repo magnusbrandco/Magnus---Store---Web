@@ -3,14 +3,28 @@ import { supabase } from '@/lib/supabase'
 import type { ProductFilters, ProductWithRelations } from '@/types'
 
 export function useProducts(filters: ProductFilters = {}) {
-  return useInfiniteQuery({
+  return useInfiniteQuery<ProductWithRelations[], Error>({
     queryKey: ['products', filters],
-    queryFn: async ({ pageParam = 0 }) => {
+    queryFn: async ({ pageParam = 0 }: any) => {
       const PAGE_SIZE = 20
       let query = supabase
         .from('products')
         .select(`
-          *,
+          id,
+          name,
+          slug,
+          description,
+          brand_id,
+          category_id,
+          base_price,
+          compare_price,
+          images,
+          tags,
+          is_active,
+          is_featured,
+          is_drop,
+          created_at,
+          updated_at,
           brand:brands(id, name, slug),
           category:categories(id, name, slug),
           variants:product_variants(id, size, color, color_hex, stock, price)
@@ -38,11 +52,12 @@ export function useProducts(filters: ProductFilters = {}) {
     getNextPageParam: (lastPage, allPages) =>
       lastPage.length === 20 ? allPages.length : undefined,
     initialPageParam: 0,
+    staleTime: 1000 * 60 * 2,
   })
 }
 
 export function useProduct(slug: string) {
-  return useQuery({
+  return useQuery<ProductWithRelations, Error>({
     queryKey: ['product', slug],
     queryFn: async () => {
       const { data, error } = await (
@@ -63,18 +78,32 @@ export function useProduct(slug: string) {
       return data as unknown as ProductWithRelations
     },
     enabled: !!slug,
+    staleTime: 1000 * 60 * 5,
   })
 }
 
 export function useFeaturedProducts() {
-  return useQuery({
+  return useQuery<ProductWithRelations[], Error>({
     queryKey: ['products', 'featured'],
     queryFn: async () => {
       const { data, error } = await (
         supabase
           .from('products')
           .select(`
-            *,
+            id,
+            name,
+            slug,
+            brand_id,
+            category_id,
+            base_price,
+            compare_price,
+            images,
+            tags,
+            is_active,
+            is_featured,
+            is_drop,
+            created_at,
+            updated_at,
             brand:brands(id, name, slug),
             variants:product_variants(id, size, color, color_hex, stock, price)
           `)
@@ -86,5 +115,6 @@ export function useFeaturedProducts() {
       if (error) throw error
       return (data ?? []) as unknown as ProductWithRelations[]
     },
+    staleTime: 1000 * 60 * 2,
   })
 }
