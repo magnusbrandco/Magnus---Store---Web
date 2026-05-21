@@ -1,8 +1,8 @@
-import { useState } from 'react'
+import { useState, ChangeEvent } from 'react'
 import { z } from 'zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useSEO } from '@/hooks/useSEO'
-import { normalizeImageUrl } from '@/lib/image'
+import { normalizeImageUrl, uploadImageFile } from '@/lib/image'
 import { notifications } from '@/lib/notifications'
 import { supabase } from '@/lib/supabase'
 import type { Product, Brand, Category } from '@/types/database'
@@ -105,6 +105,9 @@ export default function ProductsAdmin() {
   const [variants, setVariants] = useState<ProductVariantFormState[]>([emptyVariantState])
   const [isCreating, setIsCreating] = useState(false)
   const [productMessage, setProductMessage] = useState<string | null>(null)
+  const [imageFile, setImageFile] = useState<File | null>(null)
+  const [imagePreviewUrl, setImagePreviewUrl] = useState('')
+
   const { data, isLoading, error } = useQuery<ProductWithRelations[]>({
     queryKey: ['admin', 'products'],
     queryFn: async () => {
@@ -172,6 +175,8 @@ export default function ProductsAdmin() {
       })
       setForm(initialFormState)
       setVariants([emptyVariantState])
+      setImageFile(null)
+      setImagePreviewUrl('')
       setProductMessage('Producto creado correctamente.')
       notifications.success('Producto creado', 'El producto se guardó correctamente en el catálogo.')
       setIsCreating(false)
@@ -189,6 +194,17 @@ export default function ProductsAdmin() {
       [field]: value,
       ...(field === 'name' && typeof value === 'string' ? { slug: createSlug(value) } : {}),
     }))
+  }
+
+  const handleImageFileChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0] ?? null
+    if (file) {
+      setImageFile(file)
+      setImagePreviewUrl(URL.createObjectURL(file))
+    } else {
+      setImageFile(null)
+      setImagePreviewUrl('')
+    }
   }
 
   const handleVariantChange = (index: number, field: keyof ProductVariantFormState, value: string) => {
@@ -218,7 +234,19 @@ export default function ProductsAdmin() {
       return
     }
 
-    const normalizedImageUrl = normalizeImageUrl(form.imageUrl)
+    let imageUrl = form.imageUrl
+    if (imageFile) {
+      try {
+        imageUrl = await uploadImageFile(imageFile, 'products')
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'No se pudo subir la imagen.'
+        notifications.error('Error al subir la imagen', message)
+        setProductMessage(message)
+        return
+      }
+    }
+
+    const normalizedImageUrl = normalizeImageUrl(imageUrl)
     const parsedVariants = variants
       .filter((variant) => variant.size || variant.color || variant.colorHex || variant.stock !== '0' || variant.price !== '0')
       .map((variant) => variantSchema.parse({
@@ -417,7 +445,7 @@ export default function ProductsAdmin() {
                 ))}
               </select>
             </label>
-            <label className="block">
+            <label className="block lg:col-span-2">
               <span className="font-body text-sm text-muted">Imagen URL</span>
               <input
                 value={form.imageUrl}
@@ -425,6 +453,24 @@ export default function ProductsAdmin() {
                 placeholder="https://... o link de Drive"
                 className="mt-2 w-full rounded border border-border bg-bg px-3 py-2 text-white"
               />
+            </label>
+            <label className="block lg:col-span-2">
+              <span className="font-body text-sm text-muted">Imagen del producto</span>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleImageFileChange}
+                className="mt-2 w-full rounded border border-border bg-bg px-3 py-2 text-white"
+              />
+              {(imagePreviewUrl || form.imageUrl) && (
+                <div className="mt-2 overflow-hidden rounded-2xl border border-border bg-bg">
+                  <img
+                    src={imagePreviewUrl || form.imageUrl}
+                    alt="Vista previa del producto"
+                    className="h-44 w-full object-cover"
+                  />
+                </div>
+              )}
             </label>
             <div className="flex flex-col gap-3 lg:col-span-2 md:flex-row md:items-center md:justify-between">
               <label className="flex items-center gap-2">

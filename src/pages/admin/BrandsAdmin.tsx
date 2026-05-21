@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { z } from 'zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useSEO } from '@/hooks/useSEO'
-import { normalizeImageUrl } from '@/lib/image'
+import { normalizeImageUrl, uploadImageFile } from '@/lib/image'
 import { Modal } from '@/components/ui'
 import { notifications } from '@/lib/notifications'
 import { supabase } from '@/lib/supabase'
@@ -36,10 +36,16 @@ export default function BrandsAdmin() {
   const [editedSlug, setEditedSlug] = useState('')
   const [editedLogoUrl, setEditedLogoUrl] = useState('')
   const [editedCoverUrl, setEditedCoverUrl] = useState('')
+  const [editedLogoFile, setEditedLogoFile] = useState<File | null>(null)
+  const [editedLogoPreviewUrl, setEditedLogoPreviewUrl] = useState('')
 
   const [deleteTarget, setDeleteTarget] = useState<Brand | null>(null)
   const [savingBrandId, setSavingBrandId] = useState<string | null>(null)
   const [deletingBrandId, setDeletingBrandId] = useState<string | null>(null)
+  const [logoFile, setLogoFile] = useState<File | null>(null)
+  const [coverFile, setCoverFile] = useState<File | null>(null)
+  const [logoPreviewUrl, setLogoPreviewUrl] = useState('')
+  const [coverPreviewUrl, setCoverPreviewUrl] = useState('')
 
   const { data, isLoading, error } = useQuery<Brand[]>({
     queryKey: ['admin', 'brands'],
@@ -64,11 +70,14 @@ export default function BrandsAdmin() {
       if (existingSlug.error) throw existingSlug.error
       if (existingSlug.data?.length) throw new Error('Ya existe una marca con ese slug.')
 
+      const logoUrlToUse = logoFile ? await uploadImageFile(logoFile, 'brands') : logoUrl
+      const coverUrlToUse = coverFile ? await uploadImageFile(coverFile, 'brands') : coverUrl
+
       const payload = {
         name: trimmedName,
         slug,
-        logo_url: normalizeImageUrl(logoUrl) || null,
-        cover_url: normalizeImageUrl(coverUrl) || null,
+        logo_url: normalizeImageUrl(logoUrlToUse) || null,
+        cover_url: normalizeImageUrl(coverUrlToUse) || null,
         description: null,
         is_featured: false,
         sort_order: 0,
@@ -85,6 +94,10 @@ export default function BrandsAdmin() {
       setName('')
       setLogoUrl('')
       setCoverUrl('')
+      setLogoFile(null)
+      setCoverFile(null)
+      setLogoPreviewUrl('')
+      setCoverPreviewUrl('')
       notifications.success('Marca creada', 'Marca creada correctamente.')
     },
     onError: (error) => {
@@ -93,7 +106,7 @@ export default function BrandsAdmin() {
   })
 
   const updateBrand = useMutation({
-    mutationFn: async (payload: { id: string; name: string; slug: string; logo_url?: string | null; cover_url?: string | null }) => {
+    mutationFn: async (payload: { id: string; name: string; slug: string; logo_url?: string | null; cover_url?: string | null; logoFile?: File | null; coverFile?: File | null }) => {
       const trimmedName = payload.name.trim()
       if (!trimmedName) throw new Error('El nombre es requerido.')
 
@@ -115,13 +128,16 @@ export default function BrandsAdmin() {
       if (existingSlug.error) throw existingSlug.error
       if (existingSlug.data?.length) throw new Error('Ya existe otro slug igual.')
 
+      const logoUrlToUse = payload.logoFile ? await uploadImageFile(payload.logoFile, 'brands') : payload.logo_url
+      const coverUrlToUse = payload.coverFile ? await uploadImageFile(payload.coverFile, 'brands') : payload.cover_url
+
       const { data, error } = await supabase
         .from('brands')
         .update({
           name: trimmedName,
           slug: payload.slug,
-          logo_url: normalizeImageUrl(payload.logo_url || '' ) || null,
-          cover_url: normalizeImageUrl(payload.cover_url || '' ) || null,
+          logo_url: normalizeImageUrl(logoUrlToUse || '') || null,
+          cover_url: normalizeImageUrl(coverUrlToUse || '') || null,
         })
         .eq('id', payload.id)
         .select()
@@ -188,6 +204,8 @@ export default function BrandsAdmin() {
     setEditedSlug(brand.slug ?? '')
     setEditedLogoUrl(brand.logo_url ?? '')
     setEditedCoverUrl(brand.cover_url ?? '')
+    setEditedLogoFile(null)
+    setEditedLogoPreviewUrl('')
   }
 
   const resetEditBrand = () => {
@@ -196,6 +214,8 @@ export default function BrandsAdmin() {
     setEditedSlug('')
     setEditedLogoUrl('')
     setEditedCoverUrl('')
+    setEditedLogoFile(null)
+    setEditedLogoPreviewUrl('')
   }
 
   const handleDeleteBrand = (brand: Brand) => {
@@ -223,6 +243,8 @@ export default function BrandsAdmin() {
         slug: createSlug(editedSlug || editedName),
         logo_url: editedLogoUrl,
         cover_url: editedCoverUrl,
+        logoFile: editedLogoFile,
+        coverFile: null,
       })
     } finally {
       setSavingBrandId(null)
@@ -262,11 +284,35 @@ export default function BrandsAdmin() {
               return (
                 <tr key={brand.id} className="border-b border-border hover:bg-bg">
                   <td className="px-4 py-4">
-                    <div className="inline-flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border border-border bg-bg">
-                      {brand.logo_url ? (
-                        <img src={brand.logo_url} alt={brand.name} className="h-full w-full object-cover" />
-                      ) : (
-                        <span className="font-body text-xs text-muted">No logo</span>
+                    <div className="flex flex-col items-start gap-2">
+                      <div className="inline-flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border border-border bg-bg">
+                        {isEditing ? (
+                          (editedLogoPreviewUrl || editedLogoUrl || brand.logo_url) ? (
+                            <img
+                              src={editedLogoPreviewUrl || editedLogoUrl || brand.logo_url || ''}
+                              alt={brand.name}
+                              className="h-full w-full object-cover"
+                            />
+                          ) : (
+                            <span className="font-body text-xs text-muted">No logo</span>
+                          )
+                        ) : brand.logo_url ? (
+                          <img src={brand.logo_url} alt={brand.name} className="h-full w-full object-cover" />
+                        ) : (
+                          <span className="font-body text-xs text-muted">No logo</span>
+                        )}
+                      </div>
+                      {isEditing && (
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={(event) => {
+                            const file = event.target.files?.[0] ?? null
+                            setEditedLogoFile(file)
+                            setEditedLogoPreviewUrl(file ? URL.createObjectURL(file) : '')
+                          }}
+                          className="w-full rounded border border-border bg-bg px-3 py-2 text-white"
+                        />
                       )}
                     </div>
                   </td>
@@ -411,9 +457,24 @@ export default function BrandsAdmin() {
               disabled={isBusy}
               className="mt-2 w-full rounded border border-border bg-bg px-3 py-2 text-white"
             />
-            {logoUrl && (
+            <input
+              type="file"
+              accept="image/*"
+              onChange={(event) => {
+                const file = event.target.files?.[0] ?? null
+                setLogoFile(file)
+                setLogoPreviewUrl(file ? URL.createObjectURL(file) : '')
+              }}
+              disabled={isBusy}
+              className="mt-2 w-full rounded border border-border bg-bg px-3 py-2 text-white"
+            />
+            {(logoPreviewUrl || logoUrl) && (
               <div className="mt-2 overflow-hidden rounded-2xl border border-border bg-bg">
-                <img src={logoUrl} alt="Logo preview" className="h-20 w-full object-cover" />
+                <img
+                  src={logoPreviewUrl || logoUrl}
+                  alt="Logo preview"
+                  className="h-20 w-full object-cover"
+                />
               </div>
             )}
           </label>
@@ -425,6 +486,26 @@ export default function BrandsAdmin() {
               disabled={isBusy}
               className="mt-2 w-full rounded border border-border bg-bg px-3 py-2 text-white"
             />
+            <input
+              type="file"
+              accept="image/*"
+              onChange={(event) => {
+                const file = event.target.files?.[0] ?? null
+                setCoverFile(file)
+                setCoverPreviewUrl(file ? URL.createObjectURL(file) : '')
+              }}
+              disabled={isBusy}
+              className="mt-2 w-full rounded border border-border bg-bg px-3 py-2 text-white"
+            />
+            {(coverPreviewUrl || coverUrl) && (
+              <div className="mt-2 overflow-hidden rounded-2xl border border-border bg-bg">
+                <img
+                  src={coverPreviewUrl || coverUrl}
+                  alt="Cover preview"
+                  className="h-20 w-full object-cover"
+                />
+              </div>
+            )}
           </label>
           <div className="lg:col-span-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <button

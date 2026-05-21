@@ -1,8 +1,8 @@
-import { useState } from 'react'
+import { useState, ChangeEvent } from 'react'
 import { z } from 'zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useSEO } from '@/hooks/useSEO'
-import { normalizeImageUrl } from '@/lib/image'
+import { normalizeImageUrl, uploadImageFile } from '@/lib/image'
 import { Modal } from '@/components/ui'
 import { notifications } from '@/lib/notifications'
 import { supabase } from '@/lib/supabase'
@@ -36,10 +36,14 @@ export default function CategoriesAdmin() {
   const [editedSlug, setEditedSlug] = useState('')
   const [editedImageUrl, setEditedImageUrl] = useState('')
   const [editedParentId, setEditedParentId] = useState<string | null>(null)
+  const [editedImageFile, setEditedImageFile] = useState<File | null>(null)
+  const [editedImagePreviewUrl, setEditedImagePreviewUrl] = useState('')
 
   const [deleteTarget, setDeleteTarget] = useState<Category | null>(null)
   const [savingCategoryId, setSavingCategoryId] = useState<string | null>(null)
   const [deletingCategoryId, setDeletingCategoryId] = useState<string | null>(null)
+  const [imageFile, setImageFile] = useState<File | null>(null)
+  const [imagePreviewUrl, setImagePreviewUrl] = useState('')
 
   const { data, isLoading, error } = useQuery<Category[]>({
     queryKey: ['admin', 'categories'],
@@ -64,11 +68,13 @@ export default function CategoriesAdmin() {
       if (existingSlug.error) throw existingSlug.error
       if (existingSlug.data?.length) throw new Error('Ya existe una categoría con ese slug.')
 
+      const imageUrlToUse = imageFile ? await uploadImageFile(imageFile, 'categories') : imageUrl
+
       const payload = {
         name: trimmedName,
         slug,
         description: null,
-        image_url: normalizeImageUrl(imageUrl) || null,
+        image_url: normalizeImageUrl(imageUrlToUse) || null,
         parent_id: parentId || null,
         sort_order: 0,
       }
@@ -84,6 +90,8 @@ export default function CategoriesAdmin() {
       setName('')
       setImageUrl('')
       setParentId(null)
+      setImageFile(null)
+      setImagePreviewUrl('')
       notifications.success('Categoría creada', 'Categoría creada correctamente.')
     },
     onError: (error) => {
@@ -92,7 +100,7 @@ export default function CategoriesAdmin() {
   })
 
   const updateCategory = useMutation({
-    mutationFn: async (payload: { id: string; name: string; slug: string; image_url?: string | null; parent_id: string | null }) => {
+    mutationFn: async (payload: { id: string; name: string; slug: string; image_url?: string | null; parent_id: string | null; imageFile?: File | null }) => {
       const trimmedName = payload.name.trim()
       if (!trimmedName) throw new Error('El nombre es requerido.')
 
@@ -114,12 +122,14 @@ export default function CategoriesAdmin() {
       if (existingSlug.error) throw existingSlug.error
       if (existingSlug.data?.length) throw new Error('Ya existe otro slug igual.')
 
+      const imageUrlToUse = payload.imageFile ? await uploadImageFile(payload.imageFile, 'categories') : payload.image_url
+
       const { data, error } = await supabase
         .from('categories')
         .update({
           name: trimmedName,
           slug: payload.slug,
-          image_url: normalizeImageUrl(payload.image_url || '' ) || null,
+          image_url: normalizeImageUrl(imageUrlToUse || '') || null,
           parent_id: payload.parent_id || null,
         })
         .eq('id', payload.id)
@@ -187,6 +197,8 @@ export default function CategoriesAdmin() {
     setEditedSlug(category.slug ?? '')
     setEditedImageUrl(category.image_url ?? '')
     setEditedParentId(category.parent_id)
+    setEditedImageFile(null)
+    setEditedImagePreviewUrl('')
   }
 
   const resetEditCategory = () => {
@@ -195,6 +207,8 @@ export default function CategoriesAdmin() {
     setEditedSlug('')
     setEditedImageUrl('')
     setEditedParentId(null)
+    setEditedImageFile(null)
+    setEditedImagePreviewUrl('')
   }
 
   const handleDeleteCategory = (category: Category) => {
@@ -222,6 +236,7 @@ export default function CategoriesAdmin() {
         slug: createSlug(editedSlug || editedName),
         image_url: editedImageUrl,
         parent_id: editedParentId || null,
+        imageFile: editedImageFile,
       })
     } finally {
       setSavingCategoryId(null)
@@ -263,11 +278,35 @@ export default function CategoriesAdmin() {
               return (
                 <tr key={category.id} className="border-b border-border hover:bg-bg">
                   <td className="px-4 py-4">
-                    <div className="inline-flex h-10 w-10 items-center justify-center overflow-hidden rounded-2xl border border-border bg-bg">
-                      {category.image_url ? (
-                        <img src={category.image_url} alt={category.name} className="h-full w-full object-cover" />
-                      ) : (
-                        <span className="font-body text-xs text-muted">No image</span>
+                    <div className="flex flex-col items-start gap-2">
+                      <div className="inline-flex h-10 w-10 items-center justify-center overflow-hidden rounded-2xl border border-border bg-bg">
+                        {isEditing ? (
+                          (editedImagePreviewUrl || editedImageUrl || category.image_url) ? (
+                            <img
+                              src={editedImagePreviewUrl || editedImageUrl || category.image_url || ''}
+                              alt={category.name}
+                              className="h-full w-full object-cover"
+                            />
+                          ) : (
+                            <span className="font-body text-xs text-muted">No image</span>
+                          )
+                        ) : category.image_url ? (
+                          <img src={category.image_url} alt={category.name} className="h-full w-full object-cover" />
+                        ) : (
+                          <span className="font-body text-xs text-muted">No image</span>
+                        )}
+                      </div>
+                      {isEditing && (
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={(event) => {
+                            const file = event.target.files?.[0] ?? null
+                            setEditedImageFile(file)
+                            setEditedImagePreviewUrl(file ? URL.createObjectURL(file) : '')
+                          }}
+                          className="w-full rounded border border-border bg-bg px-3 py-2 text-white"
+                        />
                       )}
                     </div>
                   </td>
@@ -432,9 +471,24 @@ export default function CategoriesAdmin() {
               disabled={isBusy}
               className="mt-2 w-full rounded border border-border bg-bg px-3 py-2 text-white"
             />
-            {imageUrl && (
+            <input
+              type="file"
+              accept="image/*"
+              onChange={(event) => {
+                const file = event.target.files?.[0] ?? null
+                setImageFile(file)
+                setImagePreviewUrl(file ? URL.createObjectURL(file) : '')
+              }}
+              disabled={isBusy}
+              className="mt-2 w-full rounded border border-border bg-bg px-3 py-2 text-white"
+            />
+            {(imagePreviewUrl || imageUrl) && (
               <div className="mt-2 overflow-hidden rounded-2xl border border-border bg-bg">
-                <img src={imageUrl} alt="Vista previa de categoría" className="h-20 w-full object-cover" />
+                <img
+                  src={imagePreviewUrl || imageUrl}
+                  alt="Vista previa de categoría"
+                  className="h-20 w-full object-cover"
+                />
               </div>
             )}
           </label>
